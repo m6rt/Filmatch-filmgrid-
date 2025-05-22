@@ -11,7 +11,12 @@ class AuthService {
       UserCredential userCredential = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(email: email, password: password);
     } on FirebaseAuthException catch (e) {
-    } catch (e) {}
+      print('AuthService signup error: ${e.code} - ${e.message}');
+      rethrow;
+    } catch (e) {
+      print('AuthService signup generic error: $e');
+      rethrow;
+    }
   }
 
   Future<void> signin({required String email, required String password}) async {
@@ -21,7 +26,12 @@ class AuthService {
         password: password,
       );
     } on FirebaseAuthException catch (e) {
-    } catch (e) {}
+      print('AuthService signin error: ${e.code} - ${e.message}');
+      rethrow;
+    } catch (e) {
+      print('AuthService signin generic error: $e');
+      rethrow; // İstisnayı yeniden fırlat}
+    }
   }
 
   Future<void> logout() async {
@@ -29,28 +39,54 @@ class AuthService {
   }
 
   Future<UserCredential?> signInWithGoogle() async {
-    final GoogleSignInAccount? gUser = await GoogleSignIn().signIn();
-    if (gUser == null) {
-      return null;
+    try {
+      final GoogleSignInAccount? gUser = await GoogleSignIn().signIn();
+      if (gUser == null) {
+        return null;
+      }
+      final GoogleSignInAuthentication gAuth = await gUser.authentication;
+      final credential = GoogleAuthProvider.credential(
+        accessToken: gAuth.accessToken,
+        idToken: gAuth.idToken,
+      );
+
+      return await FirebaseAuth.instance.signInWithCredential(credential);
+    } on FirebaseAuthException catch (e) {
+      print(
+        'AuthService signInWithGoogle (FirebaseAuth) error: ${e.code} - ${e.message}',
+      );
+      rethrow;
+    } on Exception catch (e) {
+      // GoogleSignIn().signIn() PlatformException gibi hatalar fırlatabilir
+      print('AuthService signInWithGoogle (GoogleSignIn or other) error: $e');
+      rethrow;
     }
-    final GoogleSignInAuthentication gAuth = await gUser.authentication;
-    final credential = GoogleAuthProvider.credential(
-      accessToken: gAuth.accessToken,
-      idToken: gAuth.idToken,
-    );
-    return await FirebaseAuth.instance.signInWithCredential(credential);
   }
 
   Future<void> verifyEmail() async {
     User? user = FirebaseAuth.instance.currentUser;
-    if (user != null && !user.emailVerified) {
-      await user.sendEmailVerification();
+    try {
+      if (user != null && !user.emailVerified) {
+        await user.sendEmailVerification();
+      }
+    } on FirebaseAuthException catch (e) {
+      print('AuthService verifyEmail error: ${e.code} - ${e.message}');
+      rethrow;
+    } catch (e) {
+      print('AuthService verifyEmail generic error: $e');
+      rethrow;
     }
   }
 
   Future<void> resetPassword({required String email}) async {
     try {
       await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
-    } on FirebaseAuthException catch (e) {}
+    } on FirebaseAuthException catch (e) {
+      print('AuthService resetPassword error: ${e.code} - ${e.message}');
+      rethrow;
+    } catch (e) {
+      print('AuthService resetPassword generic error: $e');
+      rethrow;
+    }
   }
 }

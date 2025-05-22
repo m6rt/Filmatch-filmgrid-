@@ -1,7 +1,7 @@
 import 'package:filmgrid/main.dart';
 import 'package:filmgrid/services/auth_service.dart';
-import 'package:filmgrid/views/forgotpassword.dart';
-import 'package:filmgrid/views/registerview.dart';
+import 'package:filmgrid/views/forgot_password.dart';
+import 'package:filmgrid/views/register_view.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:filmgrid/services/auth_page.dart';
@@ -17,106 +17,106 @@ class _LoginviewState extends State<Loginview> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
-  void errorMessage(String message) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: Theme.of(context).primaryColor,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          title: const Text(
-            "Error",
-            style: TextStyle(
-              fontFamily: 'PlayfairDisplay',
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.red,
-            ),
-          ),
-          content: Text(
-            message,
-            style: TextStyle(
-              fontFamily: 'PlayfairDisplay',
-              fontSize: 16,
-              color: Theme.of(context).colorScheme.secondary,
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context); 
-              },
-              style: TextButton.styleFrom(
-                foregroundColor: Theme.of(context).colorScheme.secondary,
-              ),
-              child: const Text(
-                "OK",
-                style: TextStyle(fontFamily: 'PlayfairDisplay', fontSize: 16),
-              ),
-            ),
-          ],
-        );
-      },
+  Future<void> _errorMessage(BuildContext context, String message) async {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: const Duration(seconds: 3),
+        backgroundColor: Colors.black,
+      ),
     );
   }
 
-  void closeLoadingScreen() {
+  Future<bool> _hasInternetConnection() async {
+    var connectivityResult = await Connectivity().checkConnectivity();
+
+    if (connectivityResult.contains(ConnectivityResult.none) &&
+        connectivityResult.length == 1) {
+      return false;
+    }
+    return true;
+  }
+
+  void _closeLoadingScreen() {
     if (mounted && Navigator.canPop(context)) {
       Navigator.pop(context);
     }
+    print("[DEBUG] Dismissing loading indicator.");
   }
 
-  void handleError(String message) {
-    closeLoadingScreen();
-    errorMessage(message);
+  Future<void> _handleError(String message) async {
+    print(
+      "[DEBUG] _handleLoginError START - message: $message, mounted: $mounted",
+    );
+    _closeLoadingScreen();
+
+    if (!mounted) {
+      print(
+        "[DEBUG] _handleLoginError - mounted is true, calling _errorMessage",
+      );
+      return;
+    }
+    await _errorMessage(context, message);
   }
 
-  void login(String email, String password) async {
+  Future<bool> _validateInputs(String email, String password) async {
+    if (email.isEmpty || password.isEmpty) {
+      await _handleError("Lütfen tüm alanları doldurun.");
+      return false;
+    }
+    if (!await _hasInternetConnection()) {
+      await _handleError(
+        "İnternet bağlantısı yok. Lütfen ağınızı kontrol edin.",
+      );
+      return false;
+    }
+    return true;
+  }
+
+  void _login(String email, String password) async {
+    if (!await _validateInputs(email, password)) {
+      return;
+    }
+    print("[DEBUG] Showing loading indicator.");
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (context) {
         return const Center(child: CircularProgressIndicator());
       },
     );
     try {
       await AuthService().signin(email: email, password: password);
-      closeLoadingScreen();
+      print("[DEBUG] Signin successful.");
+      _closeLoadingScreen();
     } on FirebaseAuthException catch (e) {
-      closeLoadingScreen();
+      print("[DEBUG] FirebaseAuthException caught: ${e.code}");
       if (e.code == 'invalid-email') {
-        handleError("Invalid Email");
+        await _handleError("Invalid Email");
+      } else if (e.code == 'user-not-found') {
+        await _handleError("User Not Found");
       } else if (e.code == 'user-disabled') {
-        handleError("User Disabled");
+        await _handleError("User Disabled");
       } else if (e.code == 'too-many-requests') {
-        handleError("Too Many Requests");
+        await _handleError("Too Many Requests");
       } else if (e.code == 'wrong-password') {
-        handleError("Wrong Password");
+        await _handleError("Wrong Password");
       } else if (e.code == 'network-request-failed') {
-        handleError("Network Request Failed");
+        await _handleError("Network Request Failed");
       } else if (e.code == 'operation-not-allowed') {
-        handleError("Operation Not Allowed");
-      } else if (email.isEmpty || password.isEmpty) {
-        handleError("Please fill in all fields");
-        return;
-      } else if (!await hasInternetConnection()) {
-        handleError("No internet connection. Please check your network.");
+        await _handleError("Operation Not Allowed");
+      } else if (e.code == "invalid-credential") {
+        await _handleError("Invalid Credential");
         return;
       } else {
-        handleError("An unknown error occurred");
+        await _handleError("An unknown error occurred");
+        print("Unknown error: $e");
       }
     } catch (e) {
-      closeLoadingScreen();
-      handleError("An error occurred: $e");
-    } finally {
-      closeLoadingScreen();
+      await _handleError("An error occurred: $e");
+      print("catch error $e");
     }
-  }
-
-  Future<bool> hasInternetConnection() async {
-    var connectivityResult = await Connectivity().checkConnectivity();
-    return connectivityResult != ConnectivityResult.none;
   }
 
   @override
@@ -328,7 +328,7 @@ class _LoginviewState extends State<Loginview> {
                       ), // düzelt
                       child: TextButton(
                         onPressed: () async {
-                          login(
+                          _login(
                             _emailController.text,
                             _passwordController.text,
                           );

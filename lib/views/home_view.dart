@@ -1,7 +1,7 @@
 import 'package:filmgrid/services/auth_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:filmgrid/views/loginview.dart';
-import 'package:filmgrid/views/registerview.dart';
+import 'package:filmgrid/views/login_view.dart';
+import 'package:filmgrid/views/register_view.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_storage/firebase_storage.dart' as firebase_storage;
 import 'package:firebase_ui_auth/firebase_ui_auth.dart';
@@ -41,14 +41,6 @@ class _HomeviewState extends State<Homeview> {
   }
 
   Future<void> _checkUsername() async {
-    final user = AuthService().currentUser;
-    if (user == null) {
-      Navigator.pop(context);
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => Loginview()),
-      );
-    }
 
     try {
       // Kullanıcının UID'sine göre Firestore'dan belgeyi al

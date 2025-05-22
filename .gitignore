@@ -163,3 +163,6 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 >>>>>>> 207cc9c (UI düzenleme)
+
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist

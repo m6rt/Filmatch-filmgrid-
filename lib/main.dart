@@ -1,10 +1,12 @@
 import 'package:filmgrid/firebase_options.dart';
 import 'package:filmgrid/services/auth_page.dart';
-import 'package:filmgrid/views/emailverification.dart';
-import 'package:filmgrid/views/homeview.dart';
-import 'package:filmgrid/views/loginview.dart';
+import 'package:filmgrid/views/email_verification.dart';
+import 'package:filmgrid/views/forgot_password.dart';
+import 'package:filmgrid/views/home_view.dart';
+import 'package:filmgrid/views/login_view.dart';
 import 'package:filmgrid/views/logout.dart';
-import 'package:filmgrid/views/registerview.dart';
+import 'package:filmgrid/views/register_view.dart';
+import 'package:filmgrid/views/swipe_view.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -43,7 +45,6 @@ class MySeparator extends StatelessWidget {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   //runApp(DevicePreview(enabled: !kReleaseMode, builder: (context) => MyApp()));
   runApp(MyApp());
 }
@@ -65,7 +66,7 @@ class MyApp extends StatelessWidget {
           secondary: Colors.black,
         ),
       ),
-      home: const AuthPage(),
+      home: const SwipeView(),
     );
   }
 }

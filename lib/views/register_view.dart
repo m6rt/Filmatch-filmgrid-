@@ -2,8 +2,8 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:filmgrid/main.dart';
 import 'package:filmgrid/services/auth_page.dart';
 import 'package:filmgrid/services/auth_service.dart';
-import 'package:filmgrid/views/homeview.dart';
-import 'package:filmgrid/views/loginview.dart';
+import 'package:filmgrid/views/home_view.dart';
+import 'package:filmgrid/views/login_view.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
@@ -21,27 +21,65 @@ class _RegisterViewState extends State<RegisterView> {
   final TextEditingController _confirmPasswordControllerr =
       TextEditingController();
 
-  void closeLoadingDialog() {
-    if (mounted) Navigator.pop(context);
-  }
-
-  Future<bool> hasInternetConnection() async {
-    var connectivityResult = await Connectivity().checkConnectivity();
-    return connectivityResult != ConnectivityResult.none;
-  }
-
-  void errorMessage(String message) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: Colors.amber,
-          title: Center(
-            child: Text(message, style: TextStyle(color: Colors.black)),
-          ),
-        );
-      },
+  Future<void> _errorMessage(BuildContext context, String message) async {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: const Duration(seconds: 3),
+        backgroundColor: Colors.black,
+      ),
     );
+  }
+
+  Future<bool> _hasInternetConnection() async {
+    var connectivityResult = await Connectivity().checkConnectivity();
+
+    if (connectivityResult.contains(ConnectivityResult.none) &&
+        connectivityResult.length == 1) {
+      return false;
+    }
+    return true;
+  }
+
+  void _closeLoadingScreen() {
+    if (mounted && Navigator.canPop(context)) {
+      Navigator.pop(context);
+    }
+    print("[DEBUG] Dismissing loading indicator.");
+  }
+
+  Future<void> _handleError(String message) async {
+    print(
+      "[DEBUG] _handleLoginError START - message: $message, mounted: $mounted",
+    );
+    _closeLoadingScreen();
+
+    if (!mounted) {
+      print(
+        "[DEBUG] _handleLoginError - mounted is false, calling _errorMessage",
+      );
+      return;
+    }
+    await _errorMessage(context, message);
+  }
+
+  Future<bool> _validateInputs(
+    String email,
+    String password,
+    String confirmPassword,
+  ) async {
+    if (email.isEmpty || password.isEmpty || confirmPassword.isEmpty) {
+      await _handleError("Lütfen tüm alanları doldurun.");
+      return false;
+    }
+    if (!await _hasInternetConnection()) {
+      await _handleError(
+        "İnternet bağlantısı yok. Lütfen ağınızı kontrol edin.",
+      );
+      return false;
+    }
+    return true;
   }
 
   bool isValidEmail(String email) {
@@ -49,58 +87,59 @@ class _RegisterViewState extends State<RegisterView> {
   }
 
   void register(String email, String password, String confirmPassword) async {
+    if (!await _hasInternetConnection()) {
+      _handleError("İnternet bağlantısı yok. Lütfen ağınızı kontrol edin.");
+      return;
+    } else if (password != confirmPassword) {
+      _handleError("Parolalar eşleşmiyor");
+      return;
+    } else if (!isValidEmail(email)) {
+      _handleError("Geçersiz e-posta adresi");
+      return;
+    } else if (!await _validateInputs(email, password, confirmPassword)) {
+      _handleError("Lütfen tüm alanları doldurun.");
+      return;
+    }
+    if (!mounted) {
+      return;
+    }
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) {
+      builder: (dialogContext) {
         return const Center(child: CircularProgressIndicator());
       },
     );
-    if (!await hasInternetConnection()) {
-      errorMessage("No internet connection");
-      return;
-    }
-    if (password != confirmPassword) {
-      errorMessage("Passwords do not match");
-      closeLoadingDialog();
-      return;
-    } else if (email.isEmpty || password.isEmpty || confirmPassword.isEmpty) {
-      closeLoadingDialog();
-      errorMessage("Please fill in all fields");
-      return; // Fonksiyondan erken çık
-    } else if (!isValidEmail(email)) {
-      errorMessage("Invalid email format");
-      closeLoadingDialog();
-      return;
-    }
     try {
       await AuthService().signup(email: email, password: password);
-      closeLoadingDialog();
-      Fluttertoast.showToast(
-        msg: "Registration successful",
-        toastLength: Toast.LENGTH_SHORT,
-        gravity: ToastGravity.BOTTOM,
-        timeInSecForIosWeb: 1,
-        backgroundColor: Colors.green,
-        textColor: Colors.white,
-        fontSize: 16.0,
-      );
-      Navigator.pushReplacement(
+      _closeLoadingScreen();
+      if (!mounted) {
+        return;
+      }
+      print("[DEBUG] Signup successful.");
+      await _errorMessage(
         context,
-        MaterialPageRoute(builder: (context) => const AuthPage()),
+        "Kayıt başarılı! Lütfen e-postanızı doğrulayın.",
       );
+
+      if (mounted) {
+        Navigator.pop(context);
+      }
     } on FirebaseAuthException catch (e) {
-      closeLoadingDialog();
       if (e.code == 'email-already-in-use') {
-        errorMessage("Email already in use");
+        _handleError("Bu e-posta adresi zaten kullanılıyor.");
       } else if (e.code == 'weak-password') {
-        errorMessage("Password is too weak");
+        _handleError("Parola çok zayıf.");
+      } else if (e.code == 'invalid-email') {
+        _handleError("Geçersiz e-posta adresi.");
+      } else if (e.code == 'operation-not-allowed') {
+        _handleError("işlem için izin verilmedi.");
       } else {
-        errorMessage("An unexpected error occurred");
+        _handleError("Kayıt işlemi başarısız. Lütfen tekrar deneyin.");
       }
     } catch (e) {
-      closeLoadingDialog();
-      errorMessage("An unexpected error occurred");
+      _handleError("Kayıt işlemi başarısız. Lütfen tekrar deneyin.");
+      print("[DEBUG] Error: $e");
     }
   }
 
