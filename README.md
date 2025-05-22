@@ -1,16 +1,48 @@
-# filmgrid
 
-A new Flutter project.
 
-## Getting Started
+FilMatch is a mobile application developed with Flutter that modernizes the film and series discovery experience. Users can discover content they might like through a Tinder-like swiping interface.
 
-This project is a starting point for a Flutter application.
 
-A few resources to get you started if this is your first Flutter project:
+✨ Features
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+-Discover movies and series with an intuitive right/left swiping interface
+-discover movies and series based on your taste
+-Integrated YouTube Player for film details and trailers
+-Personalized movie recommendations
+-Rating system
+-Create favorite lists
+-Profile system which includes your reviews on movies/films and your rate 
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+🚀 Installation
+
+-Install Flutter on your system: Flutter Installation Guide
+-Clone this repository:
+-Install dependencies:
+-Run the application:
+
+💡 Usage
+
+-The basic usage of FilMatch is quite simple:
+  You will see movie cards on the main screen of the application
+  Swipe right for movies you are interested in, swipe left for those you are not interested in
+  Tap on a card for more information about a movie
+  On the movie detail page, you can watch the trailer and see the actors
+
+🛠️ Technologies Used
+
+-Flutter
+-Dart
+-YouTube Player API
+-Firebase (Authentication & Firestore)
+-Provider State Management
+
+🔮 Future Features
+
+-Profiles
+-Friend recommendations
+-Advanced movie filtering
+-Browse menu
+
+📞 Contact
+
+ - @m6rt
