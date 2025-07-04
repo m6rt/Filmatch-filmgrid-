@@ -60,10 +60,10 @@ class MyApp extends StatelessWidget {
       title: 'Flutter Demo',
       theme: ThemeData(
         fontFamily: "Caveat Brush",
-        primaryColor: Color(0XFFF7F7F7),
+        primaryColor: Color(0XFF537D5D),
         colorScheme: ColorScheme.light(
           primary: Color(0xFFF7F7F7),
-          secondary: Colors.black,
+          secondary: Color(0xFF9EBC8A),
         ),
       ),
       home: const SwipeView(),

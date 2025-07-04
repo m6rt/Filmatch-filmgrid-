@@ -141,6 +141,7 @@ class _LoginviewState extends State<Loginview> {
                     child: Image.asset(
                       "assets/images/topLogin.png",
                       fit: BoxFit.cover,
+                      color: Theme.of(context).colorScheme.secondary,
                     ),
                   ),
                 Padding(
@@ -155,9 +156,9 @@ class _LoginviewState extends State<Loginview> {
                     vertical: screenHeight * 0.32,
                     horizontal: screenWidth * 0.09,
                   ),
-                  child: const Text(
+                  child:  Text(
                     "Welcome,",
-                    style: TextStyle(fontFamily: 'Caveat Brush', fontSize: 65),
+                    style: TextStyle(fontFamily: 'Caveat Brush', fontSize: 65,color: Theme.of(context).colorScheme.secondary),
                   ),
                 ),
                 Padding(
@@ -165,9 +166,9 @@ class _LoginviewState extends State<Loginview> {
                     vertical: screenHeight * 0.39,
                     horizontal: screenWidth * 0.09,
                   ),
-                  child: const Text(
+                  child:  Text(
                     "Please Login",
-                    style: TextStyle(fontFamily: 'Caveat Brush', fontSize: 65),
+                    style: TextStyle(fontFamily: 'Caveat Brush', fontSize: 65,color: Theme.of(context).colorScheme.secondary),
                   ),
                 ),
                 Padding(
@@ -368,11 +369,12 @@ class _LoginviewState extends State<Loginview> {
                     0,
                     0,
                   ), //0.4 0.83
-                  child: const Text(
+                  child:  Text(
                     "or Sign in With",
                     style: TextStyle(
                       fontFamily: 'PlayfairDisplay',
                       fontSize: 10,
+                      color: Theme.of(context).colorScheme.secondary,
                     ),
                   ),
                 ),
