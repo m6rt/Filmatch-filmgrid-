@@ -48,7 +48,8 @@ dependencies:
   firebase_dynamic_links: ^6.1.5
   connectivity_plus: ^6.1.4
   youtube_player_flutter: ^9.1.1
-  youtube_player_iframe: ^5.2.1
+  http: ^1.4.0
+  shared_preferences: ^2.5.3
 
 dev_dependencies:
   flutter_test:
