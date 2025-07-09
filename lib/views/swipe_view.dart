@@ -4,7 +4,7 @@ import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import 'dart:async';
 import '../services/tvdb_service.dart';
 import '../services/recommendation_service.dart';
-import '../models/user_preferences.dart';
+import '../services/user_preferences.dart'; // ✅ models değil services
 
 class SwipeView extends StatefulWidget {
   const SwipeView({super.key});
@@ -386,13 +386,15 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
         _errorMessage = '';
       });
 
-      print('🎬 Loading movies from TVDB...');
+      print('🎬 Loading personalized movies...');
+
+      // ✅ Yeni kişiselleştirilmiş öneri sistemini kullan
       List<Map<String, dynamic>> movies =
-          await RecommendationService.getRecommendedMovies(count: 30);
+          await RecommendationService.getPersonalizedRecommendations(count: 30);
 
       if (movies.isEmpty) {
         // Fallback: Dummy movies
-        print('⚠️ No movies from TVDB, using fallback');
+        print('⚠️ No movies from recommendation service, using fallback');
         movies = _getFallbackMovies();
       }
 
@@ -421,13 +423,11 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
   }
 
   List<Map<String, dynamic>> _getFallbackMovies() {
-    return [
+    List<Map<String, dynamic>> movies = [
       {
         'id': 'f1',
         'title': 'Oppenheimer',
         'vote_average': 8.5,
-        'overview':
-            'The story of J. Robert Oppenheimer and the development of the atomic bomb.',
         'director': 'Christopher Nolan',
         'cast': 'Cillian Murphy, Emily Blunt, Matt Damon',
         'genre': 'Biography, Drama, History',
@@ -439,8 +439,6 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
         'id': 'f2',
         'title': 'Barbie',
         'vote_average': 7.8,
-        'overview':
-            'Barbie and Ken are having the time of their lives in the colorful world of Barbie Land.',
         'director': 'Greta Gerwig',
         'cast': 'Margot Robbie, Ryan Gosling, America Ferrera',
         'genre': 'Comedy, Adventure, Fantasy',
@@ -452,8 +450,6 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
         'id': 'f3',
         'title': 'Top Gun: Maverick',
         'vote_average': 8.7,
-        'overview':
-            'After thirty years, Maverick is still pushing the envelope as a top naval aviator.',
         'director': 'Joseph Kosinski',
         'cast': 'Tom Cruise, Miles Teller, Jennifer Connelly',
         'genre': 'Action, Drama',
@@ -463,30 +459,86 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
       },
       {
         'id': 'f4',
-        'title': 'Dune',
-        'vote_average': 8.1,
-        'overview': 'A mythic journey across a visually stunning alien world.',
-        'director': 'Denis Villeneuve',
-        'cast': 'Timothée Chalamet, Rebecca Ferguson, Oscar Isaac',
-        'genre': 'Action, Adventure, Drama, Sci-Fi',
-        'year': '2021',
-        'youtube_key': '8g18jFHCLXk',
-        'priority_score': 8.8,
+        'title': 'The Batman',
+        'vote_average': 7.8,
+        'director': 'Matt Reeves',
+        'cast': 'Robert Pattinson, Zoë Kravitz, Paul Dano',
+        'genre': 'Action, Crime, Drama',
+        'year': '2022',
+        'youtube_key': 'mqqft2x_Aa4',
+        'priority_score': 8.3,
       },
       {
         'id': 'f5',
-        'title': 'Spider-Man: No Way Home',
-        'vote_average': 8.4,
-        'overview':
-            'Spider-Man seeks help from Doctor Strange when his identity is revealed.',
-        'director': 'Jon Watts',
-        'cast': 'Tom Holland, Zendaya, Benedict Cumberbatch',
-        'genre': 'Action, Adventure, Fantasy',
-        'year': '2021',
-        'youtube_key': 'JfVOs4VSpmA',
-        'priority_score': 9.0,
+        'title': 'Everything Everywhere All at Once',
+        'vote_average': 7.8,
+        'director': 'Daniels',
+        'cast': 'Michelle Yeoh, Stephanie Hsu, Ke Huy Quan',
+        'genre': 'Action, Adventure, Comedy',
+        'year': '2022',
+        'youtube_key': 'WLkfz1Hults',
+        'priority_score': 8.7,
+      },
+      {
+        'id': 'f6',
+        'title': 'Avatar: The Way of Water',
+        'vote_average': 7.6,
+        'director': 'James Cameron',
+        'cast': 'Sam Worthington, Zoe Saldana, Sigourney Weaver',
+        'genre': 'Action, Adventure, Family',
+        'year': '2022',
+        'youtube_key': 'd9MyW72ELq0',
+        'priority_score': 8.9,
+      },
+      {
+        'id': 'f7',
+        'title': 'Dune: Part Two',
+        'vote_average': 8.8,
+        'director': 'Denis Villeneuve',
+        'cast': 'Timothée Chalamet, Zendaya, Rebecca Ferguson',
+        'genre': 'Action, Adventure, Drama',
+        'year': '2024',
+        'youtube_key': 'Way9Dexny3w',
+        'priority_score': 9.2,
+      },
+      {
+        'id': 'f8',
+        'title': 'Spider-Man: Across the Spider-Verse',
+        'vote_average': 8.7,
+        'director': 'Joaquim Dos Santos',
+        'cast': 'Shameik Moore, Hailee Steinfeld, Oscar Isaac',
+        'genre': 'Animation, Action, Adventure',
+        'year': '2023',
+        'youtube_key': 'cqGjhVJWtEg',
+        'priority_score': 8.9,
+      },
+      {
+        'id': 'f9',
+        'title': 'Guardians of the Galaxy Vol. 3',
+        'vote_average': 8.1,
+        'director': 'James Gunn',
+        'cast': 'Chris Pratt, Zoe Saldana, Dave Bautista',
+        'genre': 'Action, Adventure, Comedy',
+        'year': '2023',
+        'youtube_key': 'u3V5KDHRQvk',
+        'priority_score': 8.6,
+      },
+      {
+        'id': 'f10',
+        'title': 'John Wick: Chapter 4',
+        'vote_average': 7.8,
+        'director': 'Chad Stahelski',
+        'cast': 'Keanu Reeves, Donnie Yen, Bill Skarsgård',
+        'genre': 'Action, Crime, Thriller',
+        'year': '2023',
+        'youtube_key': 'qEVUtrk8_B4',
+        'priority_score': 8.4,
       },
     ];
+
+    // Listeyi karıştır - her seferinde farklı sırada göster
+    movies.shuffle();
+    return movies;
   }
 
   void _initializeController() {
@@ -658,13 +710,15 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
       var currentMovie = _movies[_currentVideoIndex];
 
       try {
+        // ✅ Yeni UserPreferences metodunu kullan
         await UserPreferences.addLikedMovie(
-          currentMovie['id'],
-          currentMovie['title'] ?? 'Unknown',
           currentMovie['genre'] ?? '',
           currentMovie['director'] ?? '',
           currentMovie['cast'] ?? '',
         );
+
+        // Film ID'sini gösterilmiş olarak işaretle
+        RecommendationService.markAsShown(currentMovie['id']);
 
         print(
           '✅ Liked: ${currentMovie['title']} (Score: ${currentMovie['priority_score']})',
@@ -682,13 +736,15 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
       var currentMovie = _movies[_currentVideoIndex];
 
       try {
+        // ✅ Yeni UserPreferences metodunu kullan
         await UserPreferences.addDislikedMovie(
-          currentMovie['id'],
-          currentMovie['title'] ?? 'Unknown',
           currentMovie['genre'] ?? '',
           currentMovie['director'] ?? '',
           currentMovie['cast'] ?? '',
         );
+
+        // Film ID'sini gösterilmiş olarak işaretle
+        RecommendationService.markAsShown(currentMovie['id']);
 
         print(
           '❌ Disliked: ${currentMovie['title']} (Score: ${currentMovie['priority_score']})',
@@ -732,15 +788,15 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
 
   Future<void> _loadMoreMovies() async {
     try {
-      print('🔄 Loading more movies...');
+      print('🔄 Loading more personalized movies...');
 
       // Mevcut film ID'lerini al
       List<String> currentMovieIds =
           _movies.map((m) => m['id']).cast<String>().toList();
 
-      // Yeni öneriler al (mevcut filmleri hariç tut)
+      // Yeni kişiselleştirilmiş öneriler al (mevcut filmleri hariç tut)
       List<Map<String, dynamic>> newMovies =
-          await RecommendationService.getRecommendedMovies(
+          await RecommendationService.getPersonalizedRecommendations(
             count: 25,
             excludeMovies: currentMovieIds,
           );
@@ -755,7 +811,7 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
         setState(() {
           _movies.addAll(uniqueMovies);
         });
-        print('✅ Added ${uniqueMovies.length} new movies');
+        print('✅ Added ${uniqueMovies.length} new personalized movies');
       } else {
         // Yeni film bulunamadı, başa dön
         setState(() {
@@ -772,13 +828,19 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
     }
   }
 
-  void _changeVideo() {
+  void _changeVideo() async {
     try {
       // Önceki controller'ı dispose et
       if (_controller != null) {
         _controller!.dispose();
         _controller = null;
       }
+
+      // UI'ı güncelle (loading state)
+      setState(() {});
+
+      // Biraz bekle
+      await Future.delayed(Duration(milliseconds: 300));
 
       if (_currentVideoIndex < _movies.length &&
           _movies[_currentVideoIndex]['youtube_key'] != null) {
@@ -806,6 +868,9 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
             setState(() {});
           }
         });
+
+        // UI'ı güncelle
+        setState(() {});
 
         print('🎬 Video changed to: ${_movies[_currentVideoIndex]['title']}');
       }
@@ -839,8 +904,9 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
     );
   }
 
-  void _showAlgorithmStats() {
-    Map<String, dynamic> stats = UserPreferences.getAlgorithmStats();
+  void _showAlgorithmStats() async {
+    // ✅ Async method olarak değiştir
+    Map<String, dynamic> stats = await UserPreferences.getAlgorithmStats();
 
     showDialog(
       context: context,
@@ -860,7 +926,7 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                   ...List<String>.from(
-                    stats['preferred_genres'],
+                    stats['preferred_genres'] ?? [],
                   ).map((genre) => Text('• $genre')),
                   SizedBox(height: 10),
                   Text(
@@ -868,7 +934,7 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                   ...List<String>.from(
-                    stats['preferred_directors'],
+                    stats['preferred_directors'] ?? [],
                   ).map((director) => Text('• $director')),
                   SizedBox(height: 10),
                   Text(
@@ -876,7 +942,7 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                   ...List<String>.from(
-                    stats['preferred_actors'],
+                    stats['preferred_actors'] ?? [],
                   ).map((actor) => Text('• $actor')),
                   SizedBox(height: 10),
                   Text(
@@ -884,8 +950,10 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                   Text('• Recommendation Engine: AI-based'),
-                  Text('• Personalization: Active'),
-                  Text('• Learning: Continuous'),
+                  Text(
+                    '• Personalization: ${stats['has_preferences'] ? 'Active' : 'Learning'}',
+                  ),
+                  Text('• Total Interactions: ${stats['total_interactions']}'),
                 ],
               ),
             ),
@@ -992,8 +1060,6 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
     super.dispose();
   }
 
-  // Build method burada olacak - önceki kodunuzdan kopyalayın
-
   Widget _buildInfoRow(IconData icon, String label, String value) {
     return Row(
       children: [
@@ -1019,7 +1085,6 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
     );
   }
 
-  // ✅ Doğru kod
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -1030,7 +1095,12 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
             children: [
               CircularProgressIndicator(),
               SizedBox(height: 20),
-              Text('🎬 Loading personalized movies...'),
+              Text('🤖 Loading personalized movies...'),
+              SizedBox(height: 10),
+              Text(
+                'Our AI is analyzing your preferences...',
+                style: TextStyle(color: Colors.grey[600]),
+              ),
             ],
           ),
         ),
@@ -1086,10 +1156,10 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
           icon: Icon(Icons.analytics),
         ),
         title: Text(
-          "Swipe ",
+          "FilmGrid AI",
           style: TextStyle(
             fontFamily: "Caveat Brush",
-            fontSize: 40,
+            fontSize: 32,
             color: Colors.black,
           ),
         ),
@@ -1423,6 +1493,44 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
                                         ),
                                       ),
                                     ),
+
+                                    // AI Score badge
+                                    if (currentMovie['priority_score'] != null)
+                                      Positioned(
+                                        top: 70,
+                                        left: 20,
+                                        child: Container(
+                                          padding: EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 6,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.blue.withOpacity(0.9),
+                                            borderRadius: BorderRadius.circular(
+                                              15,
+                                            ),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                Icons.smart_toy,
+                                                color: Colors.white,
+                                                size: 14,
+                                              ),
+                                              SizedBox(width: 4),
+                                              Text(
+                                                'AI: ${currentMovie['priority_score'].toStringAsFixed(1)}',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
                                   ],
                                 ),
                               ),
