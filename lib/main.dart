@@ -6,6 +6,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:device_preview/device_preview.dart';
 
 class MySeparator extends StatelessWidget {
   const MySeparator({Key? key, this.height = 1, this.color = Colors.black})
@@ -61,11 +62,21 @@ Future<void> main() async {
     }
 
     print('🚀 Starting app...');
-    runApp(MyApp());
+    runApp(
+      DevicePreview(
+        enabled: false,// Debug ve profile modda çalışır
+        builder: (context) => MyApp(),
+      ),
+    );
   } catch (e) {
     print('❌ Initialization error: $e');
     // Hata durumunda basit bir app çalıştır
-    runApp(ErrorApp(error: e.toString()));
+    runApp(
+      DevicePreview(
+        enabled: !kReleaseMode,
+        builder: (context) => ErrorApp(error: e.toString()),
+      ),
+    );
   }
 }
 
@@ -79,14 +90,10 @@ class MyApp extends StatelessWidget {
       title: 'FilmGrid',
       theme: AppTheme.theme,
       home: const SwipeView(),
-      // Error handling için
-      builder: (context, child) {
-        return child ??
-            Container(
-              color: Colors.white,
-              child: Center(child: CircularProgressIndicator()),
-            );
-      },
+      // Device Preview için gerekli
+      useInheritedMediaQuery: true,
+      locale: DevicePreview.locale(context),
+      builder: DevicePreview.appBuilder,
     );
   }
 }
@@ -101,6 +108,9 @@ class ErrorApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
+      useInheritedMediaQuery: true,
+      locale: DevicePreview.locale(context),
+      builder: DevicePreview.appBuilder,
       home: Scaffold(
         backgroundColor: Colors.white,
         body: Center(

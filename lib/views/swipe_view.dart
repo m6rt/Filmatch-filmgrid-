@@ -5,6 +5,7 @@ import '../models/movie.dart';
 import '../services/batch_optimized_movie_service.dart';
 import '../widgets/optimized_video_player.dart';
 import '../theme/app_theme.dart';
+import 'swipe_view_constants.dart';
 
 class SwipeView extends StatefulWidget {
   const SwipeView({super.key});
@@ -34,6 +35,20 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
   double _scale = 1.0;
   bool _isSwipeInProgress = false;
 
+  // Timer'ları track et (Memory leak fix)
+  final List<Timer> _activeTimers = [];
+
+  void _addTimer(Timer timer) {
+    _activeTimers.add(timer);
+  }
+
+  void _cancelAllTimers() {
+    for (final timer in _activeTimers) {
+      timer.cancel();
+    }
+    _activeTimers.clear();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -55,7 +70,7 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
         _isLoading = false;
       });
     } catch (e) {
-      print('Film yükleme hatası: $e');
+      print('${SwipeViewConstants.movieLoadError}: $e');
       setState(() {
         _isLoading = false;
       });
@@ -65,13 +80,13 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
   void _initializeAnimations() {
     // Swipe animasyonu
     _swipeAnimationController = AnimationController(
-      duration: Duration(milliseconds: 300),
+      duration: SwipeViewConstants.swipeAnimationDuration,
       vsync: this,
     );
 
     // Fade animasyonu
     _fadeAnimationController = AnimationController(
-      duration: Duration(milliseconds: 400),
+      duration: SwipeViewConstants.fadeAnimationDuration,
       vsync: this,
     );
 
@@ -91,17 +106,25 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
 
     setState(() {
       _swipeOffset += details.delta.dx;
-      _rotationAngle = (_swipeOffset / 300) * 0.3;
-      _scale = 1.0 - (_swipeOffset.abs() / 1000);
-      _scale = _scale.clamp(0.9, 1.0);
-      _swipeOffset = _swipeOffset.clamp(-400.0, 400.0);
+      _rotationAngle =
+          (_swipeOffset / SwipeViewConstants.maxRotationDivider) *
+          SwipeViewConstants.maxRotationMultiplier;
+      _scale = 1.0 - (_swipeOffset.abs() / SwipeViewConstants.scaleDivider);
+      _scale = _scale.clamp(
+        SwipeViewConstants.scaleMinClamp,
+        SwipeViewConstants.scaleMax,
+      );
+      _swipeOffset = _swipeOffset.clamp(
+        -SwipeViewConstants.maxSwipeOffset,
+        SwipeViewConstants.maxSwipeOffset,
+      );
     });
   }
 
   void _onPanEnd(DragEndDetails details) {
     if (_isSwipeInProgress) return;
 
-    if (_swipeOffset.abs() > 80) {
+    if (_swipeOffset.abs() > SwipeViewConstants.swipeThreshold) {
       _animateSwipe(_swipeOffset > 0);
     } else {
       _resetSwipePosition();
@@ -133,8 +156,8 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
   }
 
   void _updateSwipeAnimation(double targetOffset, double targetRotation) {
-    const steps = 30;
-    const stepDuration = Duration(milliseconds: 10);
+    const steps = SwipeViewConstants.swipeAnimationSteps;
+    const stepDuration = SwipeViewConstants.stepDuration;
 
     double startOffset = _swipeOffset;
     double startRotation = _rotationAngle;
@@ -142,12 +165,13 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
 
     int currentStep = 0;
 
-    Timer.periodic(stepDuration, (timer) {
+    final timer = Timer.periodic(stepDuration, (timer) {
       currentStep++;
       double progress = currentStep / steps;
 
       if (progress >= 1.0 || !mounted) {
         timer.cancel();
+        _activeTimers.remove(timer);
         return;
       }
 
@@ -155,14 +179,17 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
         _swipeOffset = startOffset + (targetOffset - startOffset) * progress;
         _rotationAngle =
             startRotation + (targetRotation - startRotation) * progress;
-        _scale = startScale + (0.8 - startScale) * progress;
+        _scale =
+            startScale + (SwipeViewConstants.scaleMin - startScale) * progress;
       });
     });
+
+    _addTimer(timer);
   }
 
   void _resetSwipePosition() {
-    const steps = 20;
-    const stepDuration = Duration(milliseconds: 10);
+    const steps = SwipeViewConstants.resetAnimationSteps;
+    const stepDuration = SwipeViewConstants.stepDuration;
 
     double startOffset = _swipeOffset;
     double startRotation = _rotationAngle;
@@ -170,12 +197,13 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
 
     int currentStep = 0;
 
-    Timer.periodic(stepDuration, (timer) {
+    final timer = Timer.periodic(stepDuration, (timer) {
       currentStep++;
       double progress = currentStep / steps;
 
       if (progress >= 1.0 || !mounted) {
         timer.cancel();
+        _activeTimers.remove(timer);
         setState(() {
           _swipeOffset = 0.0;
           _rotationAngle = 0.0;
@@ -187,9 +215,12 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
       setState(() {
         _swipeOffset = startOffset * (1.0 - progress);
         _rotationAngle = startRotation * (1.0 - progress);
-        _scale = startScale + (1.0 - startScale) * progress;
+        _scale =
+            startScale + (SwipeViewConstants.scaleMax - startScale) * progress;
       });
     });
+
+    _addTimer(timer);
   }
 
   Future<void> _nextCardWithAnimation() async {
@@ -224,7 +255,9 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
             Icon(isLike ? Icons.favorite : Icons.close, color: AppTheme.white),
             SizedBox(width: 8),
             Text(
-              isLike ? 'Liked!' : 'Disliked!',
+              isLike
+                  ? SwipeViewConstants.likedMessage
+                  : SwipeViewConstants.dislikedMessage,
               style: Theme.of(context).textTheme.labelLarge,
             ),
           ],
@@ -241,7 +274,7 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
     if (_currentMovie?.trailerUrl == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Bu film için trailer bulunamadı'),
+          content: Text(SwipeViewConstants.noTrailerMessage),
           backgroundColor: AppTheme.secondaryGrey,
         ),
       );
@@ -337,8 +370,16 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
 
   @override
   void dispose() {
+    // Timer'ları iptal et (Memory leak prevention)
+    _cancelAllTimers();
+
+    // Animation controller'ları dispose et
     _swipeAnimationController.dispose();
     _fadeAnimationController.dispose();
+
+    // Video player key'ini temizle
+    _videoPlayerKey = null;
+
     super.dispose();
   }
 
@@ -391,7 +432,7 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
               CircularProgressIndicator(color: AppTheme.primaryRed),
               SizedBox(height: 20),
               Text(
-                'Filmler yükleniyor...',
+                SwipeViewConstants.loadingMessage,
                 style: Theme.of(
                   context,
                 ).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w500),
@@ -416,18 +457,18 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
               ),
               SizedBox(height: 20),
               Text(
-                'Gösterilecek film bulunamadı!',
+                SwipeViewConstants.noMovieMessage,
                 style: Theme.of(context).textTheme.headlineSmall,
               ),
               SizedBox(height: 10),
               Text(
-                'Lütfen uygulamayı yeniden başlatın.',
+                SwipeViewConstants.restartMessage,
                 style: Theme.of(context).textTheme.bodySmall,
               ),
               SizedBox(height: 30),
               ElevatedButton(
                 onPressed: _loadMovies,
-                child: Text('Yeniden Yükle'),
+                child: Text(SwipeViewConstants.retryButtonText),
               ),
             ],
           ),
@@ -440,19 +481,31 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
 
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(
-          onPressed: () => _showSampleDialog('Statistics'),
-          icon: Icon(Icons.analytics),
+        leading: Semantics(
+          label: SwipeViewConstants.statisticsLabel,
+          child: IconButton(
+            onPressed: () => _showSampleDialog('Statistics'),
+            icon: Icon(Icons.analytics),
+            tooltip: SwipeViewConstants.statisticsLabel,
+          ),
         ),
         title: Text("Swipe"),
         actions: [
-          IconButton(
-            onPressed: () => _showSampleDialog('Search'),
-            icon: Icon(Icons.search),
+          Semantics(
+            label: SwipeViewConstants.searchLabel,
+            child: IconButton(
+              onPressed: () => _showSampleDialog('Search'),
+              icon: Icon(Icons.search),
+              tooltip: SwipeViewConstants.searchLabel,
+            ),
           ),
-          IconButton(
-            onPressed: () => _showSampleDialog('Profile'),
-            icon: Icon(Icons.person),
+          Semantics(
+            label: SwipeViewConstants.profileLabel,
+            child: IconButton(
+              onPressed: () => _showSampleDialog('Profile'),
+              icon: Icon(Icons.person),
+              tooltip: SwipeViewConstants.profileLabel,
+            ),
           ),
         ],
       ),
@@ -487,8 +540,12 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
                             onPanUpdate: _onPanUpdate,
                             onPanEnd: _onPanEnd,
                             child: Container(
-                              width: screenWidth * 0.9,
-                              height: screenHeight * 0.75,
+                              width:
+                                  screenWidth *
+                                  SwipeViewConstants.cardWidthRatio,
+                              height:
+                                  screenHeight *
+                                  SwipeViewConstants.cardHeightRatio,
                               decoration: AppTheme.cardDecoration,
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(20),
@@ -499,7 +556,7 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
                                       width: double.infinity,
                                       height:
                                           screenHeight *
-                                          0.48, // Videoyu daha da küçülttük
+                                          SwipeViewConstants.videoHeightRatio,
                                       decoration: BoxDecoration(
                                         borderRadius: BorderRadius.only(
                                           topLeft: Radius.circular(20),
@@ -678,7 +735,7 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
                                       child: Container(
                                         height:
                                             screenHeight *
-                                            0.27, // Film bilgilerini daha da genişlettik
+                                            SwipeViewConstants.infoHeightRatio,
                                         padding: EdgeInsets.all(16),
                                         decoration: BoxDecoration(
                                           color: AppTheme.white,
@@ -817,18 +874,29 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
 
                                     // Tam ekran butonu
                                     Positioned(
-                                      top: 16, // Yukarı kaldırdık
+                                      top: 16,
                                       right: 16,
-                                      child: Container(
-                                        decoration: BoxDecoration(
-                                          color: Colors.black.withOpacity(0.7),
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: IconButton(
-                                          onPressed: _showFullscreenVideo,
-                                          icon: Icon(
-                                            Icons.fullscreen,
-                                            color: Colors.white,
+                                      child: Semantics(
+                                        label:
+                                            SwipeViewConstants.fullscreenLabel,
+                                        button: true,
+                                        onTap: _showFullscreenVideo,
+                                        child: Container(
+                                          decoration: BoxDecoration(
+                                            color: Colors.black.withOpacity(
+                                              0.7,
+                                            ),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: IconButton(
+                                            onPressed: _showFullscreenVideo,
+                                            icon: Icon(
+                                              Icons.fullscreen,
+                                              color: Colors.white,
+                                            ),
+                                            tooltip:
+                                                SwipeViewConstants
+                                                    .fullscreenLabel,
                                           ),
                                         ),
                                       ),
@@ -851,29 +919,39 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
-                        GestureDetector(
+                        Semantics(
+                          label: SwipeViewConstants.dislikeButtonLabel,
+                          button: true,
                           onTap: () => _animateSwipe(false),
-                          child: Container(
-                            width: 65,
-                            height: 65,
-                            decoration: AppTheme.dislikeButtonDecoration,
-                            child: Icon(
-                              Icons.close,
-                              color: AppTheme.secondaryGrey,
-                              size: 32,
+                          child: GestureDetector(
+                            onTap: () => _animateSwipe(false),
+                            child: Container(
+                              width: SwipeViewConstants.actionButtonSize,
+                              height: SwipeViewConstants.actionButtonSize,
+                              decoration: AppTheme.dislikeButtonDecoration,
+                              child: Icon(
+                                Icons.close,
+                                color: AppTheme.secondaryGrey,
+                                size: SwipeViewConstants.actionButtonIconSize,
+                              ),
                             ),
                           ),
                         ),
-                        GestureDetector(
+                        Semantics(
+                          label: SwipeViewConstants.likeButtonLabel,
+                          button: true,
                           onTap: () => _animateSwipe(true),
-                          child: Container(
-                            width: 65,
-                            height: 65,
-                            decoration: AppTheme.buttonDecoration,
-                            child: Icon(
-                              Icons.favorite,
-                              color: AppTheme.white,
-                              size: 32,
+                          child: GestureDetector(
+                            onTap: () => _animateSwipe(true),
+                            child: Container(
+                              width: SwipeViewConstants.actionButtonSize,
+                              height: SwipeViewConstants.actionButtonSize,
+                              decoration: AppTheme.buttonDecoration,
+                              child: Icon(
+                                Icons.favorite,
+                                color: AppTheme.white,
+                                size: SwipeViewConstants.actionButtonIconSize,
+                              ),
                             ),
                           ),
                         ),
@@ -927,6 +1005,7 @@ class _CustomFullscreenVideoPlayerState
 
   @override
   void dispose() {
+    // Timer'ları güvenli şekilde dispose et
     _hideControlsTimer?.cancel();
     _positionTimer?.cancel();
     super.dispose();
@@ -934,7 +1013,7 @@ class _CustomFullscreenVideoPlayerState
 
   void _startHideControlsTimer() {
     _hideControlsTimer?.cancel();
-    _hideControlsTimer = Timer(Duration(seconds: 3), () {
+    _hideControlsTimer = Timer(SwipeViewConstants.hideControlsDuration, () {
       if (mounted) {
         setState(() {
           _showControls = false;
@@ -944,7 +1023,9 @@ class _CustomFullscreenVideoPlayerState
   }
 
   void _startPositionUpdater() {
-    _positionTimer = Timer.periodic(Duration(milliseconds: 500), (timer) {
+    _positionTimer = Timer.periodic(SwipeViewConstants.positionUpdateInterval, (
+      timer,
+    ) {
       if (mounted) {
         final state = _playerKey.currentState;
         if (state != null) {
@@ -961,8 +1042,10 @@ class _CustomFullscreenVideoPlayerState
               if (duration != null && duration.inSeconds > 0) {
                 _totalDuration = duration;
               } else if (_totalDuration.inSeconds <= 0) {
-                // Varsayılan süre (çoğu trailer 2-3 dakika)
-                _totalDuration = Duration(minutes: 3);
+                // Varsayılan süre
+                _totalDuration = Duration(
+                  minutes: SwipeViewConstants.defaultTrailerMinutes,
+                );
               }
             });
           }
@@ -1057,7 +1140,7 @@ class _CustomFullscreenVideoPlayerState
               // Video Player
               Center(
                 child: AspectRatio(
-                  aspectRatio: 16 / 9,
+                  aspectRatio: SwipeViewConstants.aspectRatio,
                   child: OptimizedVideoPlayer(
                     key: _playerKey,
                     trailerUrl: widget.trailerUrl,
@@ -1158,7 +1241,7 @@ class _CustomFullscreenVideoPlayerState
                               child: Icon(
                                 _isPlaying ? Icons.pause : Icons.play_arrow,
                                 color: Colors.white,
-                                size: 40,
+                                size: SwipeViewConstants.playButtonSize,
                               ),
                             ),
                           ),
@@ -1257,7 +1340,7 @@ class _CustomFullscreenVideoPlayerState
                                     onTap: () {
                                       final newPosition = Duration(
                                         seconds: (_currentPosition.inSeconds -
-                                                10)
+                                                SwipeViewConstants.seekSeconds)
                                             .clamp(0, _totalDuration.inSeconds),
                                       );
                                       _seekTo(newPosition);
@@ -1271,7 +1354,9 @@ class _CustomFullscreenVideoPlayerState
                                           Icon(
                                             Icons.replay_10,
                                             color: Colors.white,
-                                            size: 24,
+                                            size:
+                                                SwipeViewConstants
+                                                    .seekButtonSize,
                                           ),
                                           SizedBox(width: 4),
                                           Text(
@@ -1296,7 +1381,7 @@ class _CustomFullscreenVideoPlayerState
                                     onTap: () {
                                       final newPosition = Duration(
                                         seconds: (_currentPosition.inSeconds +
-                                                10)
+                                                SwipeViewConstants.seekSeconds)
                                             .clamp(0, _totalDuration.inSeconds),
                                       );
                                       _seekTo(newPosition);
@@ -1310,7 +1395,9 @@ class _CustomFullscreenVideoPlayerState
                                           Icon(
                                             Icons.forward_10,
                                             color: Colors.white,
-                                            size: 24,
+                                            size:
+                                                SwipeViewConstants
+                                                    .seekButtonSize,
                                           ),
                                           SizedBox(width: 4),
                                           Text(
