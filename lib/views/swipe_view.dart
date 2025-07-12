@@ -271,90 +271,24 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
       barrierDismissible: true,
       useSafeArea: false,
       builder: (context) {
-        final GlobalKey<OptimizedVideoPlayerState> fullscreenPlayerKey =
-            GlobalKey();
-
-        return PopScope(
-          onPopInvokedWithResult: (didPop, result) {
-            if (didPop) {
-              final fullscreenPosition =
-                  fullscreenPlayerKey.currentState?.currentPosition;
-              if (fullscreenPosition != null) {
-                print(
-                  'Fullscreen pozisyonu: ${fullscreenPosition.inSeconds} saniye',
-                );
-                Future.delayed(Duration(milliseconds: 100), () {
-                  _videoPlayerKey?.currentState?.seekTo(fullscreenPosition);
-                });
-              }
-
-              // Tam ekrandan çıkışta dikey moda geri dön
-              SystemChrome.setPreferredOrientations([
-                DeviceOrientation.portraitUp,
-                DeviceOrientation.portraitDown,
-              ]);
+        return _CustomFullscreenVideoPlayer(
+          trailerUrl: _currentMovie!.trailerUrl!,
+          initialPosition: _currentVideoPosition,
+          onClose: (position) {
+            // Tam ekrandan çıkışta pozisyonu ana player'a aktar
+            if (position != null) {
+              print('Fullscreen pozisyonu: ${position.inSeconds} saniye');
+              Future.delayed(Duration(milliseconds: 100), () {
+                _videoPlayerKey?.currentState?.seekTo(position);
+              });
             }
+
+            // Dikey moda geri dön
+            SystemChrome.setPreferredOrientations([
+              DeviceOrientation.portraitUp,
+              DeviceOrientation.portraitDown,
+            ]);
           },
-          child: Scaffold(
-            backgroundColor: Colors.black,
-            body: Stack(
-              children: [
-                Center(
-                  child: AspectRatio(
-                    aspectRatio: 16 / 9,
-                    child: OptimizedVideoPlayer(
-                      key: fullscreenPlayerKey,
-                      trailerUrl: _currentMovie!.trailerUrl,
-                      backgroundColor: Colors.black,
-                      autoPlay: true,
-                      enableFullscreenControls: true,
-                      initialPosition: _currentVideoPosition,
-                    ),
-                  ),
-                ),
-                Positioned(
-                  top: MediaQuery.of(context).padding.top + 10,
-                  right: 20,
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: () {
-                        final fullscreenPosition =
-                            fullscreenPlayerKey.currentState?.currentPosition;
-                        if (fullscreenPosition != null) {
-                          print(
-                            'Kapatma butonu - Fullscreen pozisyonu: ${fullscreenPosition.inSeconds} saniye',
-                          );
-                          Future.delayed(Duration(milliseconds: 100), () {
-                            _videoPlayerKey?.currentState?.seekTo(
-                              fullscreenPosition,
-                            );
-                          });
-                        }
-
-                        // Kapatma butonuna basınca dikey moda geri dön
-                        SystemChrome.setPreferredOrientations([
-                          DeviceOrientation.portraitUp,
-                          DeviceOrientation.portraitDown,
-                        ]);
-
-                        Navigator.pop(context);
-                      },
-                      borderRadius: BorderRadius.circular(25),
-                      child: Container(
-                        padding: EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.7),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(Icons.close, color: Colors.white, size: 24),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
         );
       },
     );
@@ -510,7 +444,7 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
           onPressed: () => _showSampleDialog('Statistics'),
           icon: Icon(Icons.analytics),
         ),
-        title: Text("FilmGrid AI"),
+        title: Text("Swipe"),
         actions: [
           IconButton(
             onPressed: () => _showSampleDialog('Search'),
@@ -541,7 +475,10 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
                   // Ana kart
                   Center(
                     child: Transform.translate(
-                      offset: Offset(_swipeOffset, -30),
+                      offset: Offset(
+                        _swipeOffset,
+                        -50,
+                      ), // Daha yukarı kaldırdık
                       child: Transform.rotate(
                         angle: _rotationAngle,
                         child: Transform.scale(
@@ -560,7 +497,9 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
                                     // Video container
                                     Container(
                                       width: double.infinity,
-                                      height: screenHeight * 0.58,
+                                      height:
+                                          screenHeight *
+                                          0.48, // Videoyu daha da küçülttük
                                       decoration: BoxDecoration(
                                         borderRadius: BorderRadius.only(
                                           topLeft: Radius.circular(20),
@@ -737,7 +676,9 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
                                       left: 0,
                                       right: 0,
                                       child: Container(
-                                        height: screenHeight * 0.17,
+                                        height:
+                                            screenHeight *
+                                            0.27, // Film bilgilerini daha da genişlettik
                                         padding: EdgeInsets.all(16),
                                         decoration: BoxDecoration(
                                           color: AppTheme.white,
@@ -833,6 +774,41 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
                                                     .take(2)
                                                     .join(', '),
                                               ),
+                                              SizedBox(height: 8),
+                                              // Description - kutu olmadan
+                                              Row(
+                                                children: [
+                                                  Icon(
+                                                    Icons.description,
+                                                    size: 16,
+                                                    color:
+                                                        AppTheme.secondaryGrey,
+                                                  ),
+                                                  SizedBox(width: 8),
+                                                  Text(
+                                                    'Description: ',
+                                                    style: Theme.of(context)
+                                                        .textTheme
+                                                        .bodySmall
+                                                        ?.copyWith(
+                                                          fontWeight:
+                                                              FontWeight.w500,
+                                                        ),
+                                                  ),
+                                                ],
+                                              ),
+                                              SizedBox(height: 6),
+                                              Text(
+                                                _currentMovie!.description,
+                                                style: Theme.of(
+                                                  context,
+                                                ).textTheme.bodySmall?.copyWith(
+                                                  color: AppTheme.darkGrey,
+                                                  height: 1.4,
+                                                ),
+                                                maxLines: 4,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
                                             ],
                                           ),
                                         ),
@@ -841,8 +817,8 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
 
                                     // Tam ekran butonu
                                     Positioned(
-                                      top: 20,
-                                      right: 20,
+                                      top: 16, // Yukarı kaldırdık
+                                      right: 16,
                                       child: Container(
                                         decoration: BoxDecoration(
                                           color: Colors.black.withOpacity(0.7),
@@ -909,6 +885,458 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+// Özel Fullscreen Video Player Widget
+class _CustomFullscreenVideoPlayer extends StatefulWidget {
+  final String trailerUrl;
+  final Duration? initialPosition;
+  final Function(Duration?) onClose;
+
+  const _CustomFullscreenVideoPlayer({
+    required this.trailerUrl,
+    this.initialPosition,
+    required this.onClose,
+  });
+
+  @override
+  State<_CustomFullscreenVideoPlayer> createState() =>
+      _CustomFullscreenVideoPlayerState();
+}
+
+class _CustomFullscreenVideoPlayerState
+    extends State<_CustomFullscreenVideoPlayer> {
+  late GlobalKey<OptimizedVideoPlayerState> _playerKey;
+  bool _showControls = true;
+  bool _isPlaying = false;
+  Duration _currentPosition = Duration.zero;
+  Duration _totalDuration = Duration.zero;
+  Timer? _hideControlsTimer;
+  Timer? _positionTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _playerKey = GlobalKey<OptimizedVideoPlayerState>();
+    _startHideControlsTimer();
+    _startPositionUpdater();
+  }
+
+  @override
+  void dispose() {
+    _hideControlsTimer?.cancel();
+    _positionTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startHideControlsTimer() {
+    _hideControlsTimer?.cancel();
+    _hideControlsTimer = Timer(Duration(seconds: 3), () {
+      if (mounted) {
+        setState(() {
+          _showControls = false;
+        });
+      }
+    });
+  }
+
+  void _startPositionUpdater() {
+    _positionTimer = Timer.periodic(Duration(milliseconds: 500), (timer) {
+      if (mounted) {
+        final state = _playerKey.currentState;
+        if (state != null) {
+          final position = state.currentPosition;
+          final duration = state.totalDuration;
+          final isPlaying = state.isPlaying;
+
+          if (position != null) {
+            setState(() {
+              _currentPosition = position;
+              _isPlaying = isPlaying;
+
+              // Video süresi varsa güncelle
+              if (duration != null && duration.inSeconds > 0) {
+                _totalDuration = duration;
+              } else if (_totalDuration.inSeconds <= 0) {
+                // Varsayılan süre (çoğu trailer 2-3 dakika)
+                _totalDuration = Duration(minutes: 3);
+              }
+            });
+          }
+        }
+      }
+    });
+  }
+
+  void _togglePlayPause() {
+    final state = _playerKey.currentState;
+    if (state != null) {
+      if (_isPlaying) {
+        state.pause();
+      } else {
+        state.play();
+      }
+      setState(() {
+        _isPlaying = !_isPlaying;
+      });
+    }
+    _showControlsTemporarily();
+  }
+
+  void _seekTo(Duration position) {
+    final state = _playerKey.currentState;
+    if (state != null) {
+      // Önce seek et
+      state.seekTo(position);
+
+      // Hemen pozisyonu güncelle (görsel feedback için)
+      setState(() {
+        _currentPosition = position;
+      });
+
+      // 500ms sonra gerçek pozisyonu kontrol et
+      Timer(Duration(milliseconds: 500), () {
+        if (mounted) {
+          final actualPosition = state.currentPosition;
+          if (actualPosition != null) {
+            setState(() {
+              _currentPosition = actualPosition;
+            });
+          }
+        }
+      });
+    }
+    _showControlsTemporarily();
+  }
+
+  void _showControlsTemporarily() {
+    setState(() {
+      _showControls = true;
+    });
+    _startHideControlsTimer();
+  }
+
+  void _closeFullscreen() {
+    final currentPosition = _playerKey.currentState?.currentPosition;
+    widget.onClose(currentPosition);
+    Navigator.pop(context);
+  }
+
+  String _formatDuration(Duration duration) {
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
+    String twoDigitMinutes = twoDigits(duration.inMinutes.remainder(60));
+    String twoDigitSeconds = twoDigits(duration.inSeconds.remainder(60));
+    return "${twoDigits(duration.inHours)}:$twoDigitMinutes:$twoDigitSeconds";
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) {
+          final currentPosition = _playerKey.currentState?.currentPosition;
+          widget.onClose(currentPosition);
+        }
+      },
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        body: GestureDetector(
+          onTap: () {
+            setState(() {
+              _showControls = !_showControls;
+            });
+            if (_showControls) {
+              _startHideControlsTimer();
+            }
+          },
+          child: Stack(
+            children: [
+              // Video Player
+              Center(
+                child: AspectRatio(
+                  aspectRatio: 16 / 9,
+                  child: OptimizedVideoPlayer(
+                    key: _playerKey,
+                    trailerUrl: widget.trailerUrl,
+                    backgroundColor: Colors.black,
+                    autoPlay: true,
+                    enableFullscreenControls:
+                        false, // YouTube kontrollerini devre dışı bırak
+                    initialPosition: widget.initialPosition,
+                  ),
+                ),
+              ),
+
+              // Özel Kontroller
+              AnimatedOpacity(
+                opacity: _showControls ? 1.0 : 0.0,
+                duration: Duration(milliseconds: 300),
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.black.withOpacity(0.7),
+                        Colors.transparent,
+                        Colors.transparent,
+                        Colors.black.withOpacity(0.7),
+                      ],
+                      stops: [0.0, 0.3, 0.7, 1.0],
+                    ),
+                  ),
+                  child: Stack(
+                    children: [
+                      // Üst Bar - Kapatma Butonu
+                      Positioned(
+                        top: MediaQuery.of(context).padding.top + 10,
+                        left: 20,
+                        right: 20,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            // Film Başlığı
+                            Expanded(
+                              child: Text(
+                                'Film Trailer',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            // Kapatma Butonu
+                            Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: _closeFullscreen,
+                                borderRadius: BorderRadius.circular(25),
+                                child: Container(
+                                  padding: EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withOpacity(0.5),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    Icons.close,
+                                    color: Colors.white,
+                                    size: 24,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // Orta - Play/Pause Butonu
+                      Center(
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: _togglePlayPause,
+                            borderRadius: BorderRadius.circular(40),
+                            child: Container(
+                              padding: EdgeInsets.all(20),
+                              decoration: BoxDecoration(
+                                color: AppTheme.primaryRed.withOpacity(0.9),
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.3),
+                                    blurRadius: 10,
+                                    spreadRadius: 2,
+                                  ),
+                                ],
+                              ),
+                              child: Icon(
+                                _isPlaying ? Icons.pause : Icons.play_arrow,
+                                color: Colors.white,
+                                size: 40,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      // Alt Bar - Progress Bar ve Zaman
+                      Positioned(
+                        bottom: MediaQuery.of(context).padding.bottom + 20,
+                        left: 20,
+                        right: 20,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Progress Bar
+                            Row(
+                              children: [
+                                // Zaman - Başlangıç
+                                Text(
+                                  _formatDuration(_currentPosition),
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                SizedBox(width: 12),
+
+                                // Progress Bar
+                                Expanded(
+                                  child: SliderTheme(
+                                    data: SliderTheme.of(context).copyWith(
+                                      activeTrackColor: AppTheme.primaryRed,
+                                      inactiveTrackColor: Colors.white
+                                          .withOpacity(0.3),
+                                      thumbColor: AppTheme.primaryRed,
+                                      overlayColor: AppTheme.primaryRed
+                                          .withOpacity(0.2),
+                                      thumbShape: RoundSliderThumbShape(
+                                        enabledThumbRadius: 8,
+                                      ),
+                                      trackHeight: 4,
+                                    ),
+                                    child: Slider(
+                                      value:
+                                          _totalDuration.inSeconds > 0
+                                              ? (_currentPosition.inSeconds
+                                                          .toDouble() /
+                                                      _totalDuration.inSeconds
+                                                          .toDouble())
+                                                  .clamp(0.0, 1.0)
+                                              : 0.0,
+                                      min: 0.0,
+                                      max: 1.0,
+                                      onChanged: (value) {
+                                        if (_totalDuration.inSeconds > 0) {
+                                          final newPosition = Duration(
+                                            seconds:
+                                                (value *
+                                                        _totalDuration
+                                                            .inSeconds)
+                                                    .round(),
+                                          );
+                                          _seekTo(newPosition);
+                                        }
+                                      },
+                                    ),
+                                  ),
+                                ),
+
+                                SizedBox(width: 12),
+                                // Zaman - Toplam (tahmini)
+                                Text(
+                                  _totalDuration.inSeconds > 0
+                                      ? _formatDuration(_totalDuration)
+                                      : '00:03:00', // Varsayılan trailer süresi
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+
+                            SizedBox(height: 20),
+
+                            // Alt Kontroller
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                // 10 saniye geri
+                                Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    onTap: () {
+                                      final newPosition = Duration(
+                                        seconds: (_currentPosition.inSeconds -
+                                                10)
+                                            .clamp(0, _totalDuration.inSeconds),
+                                      );
+                                      _seekTo(newPosition);
+                                    },
+                                    borderRadius: BorderRadius.circular(25),
+                                    child: Container(
+                                      padding: EdgeInsets.all(12),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            Icons.replay_10,
+                                            color: Colors.white,
+                                            size: 24,
+                                          ),
+                                          SizedBox(width: 4),
+                                          Text(
+                                            '10s',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+
+                                SizedBox(width: 40),
+
+                                // 10 saniye ileri
+                                Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    onTap: () {
+                                      final newPosition = Duration(
+                                        seconds: (_currentPosition.inSeconds +
+                                                10)
+                                            .clamp(0, _totalDuration.inSeconds),
+                                      );
+                                      _seekTo(newPosition);
+                                    },
+                                    borderRadius: BorderRadius.circular(25),
+                                    child: Container(
+                                      padding: EdgeInsets.all(12),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            Icons.forward_10,
+                                            color: Colors.white,
+                                            size: 24,
+                                          ),
+                                          SizedBox(width: 4),
+                                          Text(
+                                            '10s',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

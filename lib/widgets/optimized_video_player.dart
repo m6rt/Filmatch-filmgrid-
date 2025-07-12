@@ -112,8 +112,20 @@ class OptimizedVideoPlayerState extends State<OptimizedVideoPlayer> {
 
   Duration? get currentPosition => _controller?.value.position;
 
+  Duration? get totalDuration => _controller?.value.metaData.duration;
+
+  bool get isPlaying => _controller?.value.isPlaying ?? false;
+
   void seekTo(Duration position) {
     _controller?.seekTo(position);
+  }
+
+  void play() {
+    _controller?.play();
+  }
+
+  void pause() {
+    _controller?.pause();
   }
 
   @override
