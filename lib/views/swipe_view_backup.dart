@@ -22,7 +22,7 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
 
   // Video pozisyonunu saklamak için
   Duration? _currentVideoPosition;
-  GlobalKey<OptimizedVideoPlayerState>? _videoPlayerKey;
+  final GlobalKey<OptimizedVideoPlayerState> _videoPlayerKey = GlobalKey();
 
   // Tinder benzeri animasyon değişkenleri
   late AnimationController _swipeAnimationController;
@@ -37,7 +37,6 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    _videoPlayerKey = GlobalKey<OptimizedVideoPlayerState>();
     _initializeAnimations();
     _loadMovies();
   }
@@ -91,9 +90,15 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
 
     setState(() {
       _swipeOffset += details.delta.dx;
-      _rotationAngle = (_swipeOffset / 300) * 0.3;
+
+      // Rotation hesapla (maksimum 15 derece)
+      _rotationAngle = (_swipeOffset / 300) * 0.3; // Radyan cinsinden
+
+      // Scale hesapla (hafif küçültme)
       _scale = 1.0 - (_swipeOffset.abs() / 1000);
       _scale = _scale.clamp(0.9, 1.0);
+
+      // Sınırları belirle
       _swipeOffset = _swipeOffset.clamp(-400.0, 400.0);
     });
   }
@@ -101,9 +106,11 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
   void _onPanEnd(DragEndDetails details) {
     if (_isSwipeInProgress) return;
 
+    // Swipe threshold - daha düşük threshold
     if (_swipeOffset.abs() > 80) {
       _animateSwipe(_swipeOffset > 0);
     } else {
+      // Geri dön animasyonu
       _resetSwipePosition();
     }
   }
@@ -113,26 +120,34 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
       _isSwipeInProgress = true;
     });
 
+    // Kullanıcı eylemini kaydet
     if (_currentMovie != null) {
       _movieService.recordUserAction(
         _currentMovie!,
         isLike ? SwipeAction.like : SwipeAction.dislike,
       );
+
+      // Debug için tercihleri yazdır
       _movieService.printUserPreferences();
     }
 
+    // Swipe animasyonu - karta çıkış yönü
     double targetOffset = isLike ? 500.0 : -500.0;
     double targetRotation = isLike ? 0.5 : -0.5;
 
+    // Manuel animasyon
     _swipeAnimationController.forward().then((_) {
+      // Animasyon tamamlandığında
       _showFeedback(isLike);
       _nextCardWithAnimation();
     });
 
+    // Animasyon değerlerini güncelle
     _updateSwipeAnimation(targetOffset, targetRotation);
   }
 
   void _updateSwipeAnimation(double targetOffset, double targetRotation) {
+    // Smooth animasyon için timer kullan
     const steps = 30;
     const stepDuration = Duration(milliseconds: 10);
 
@@ -161,6 +176,7 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
   }
 
   void _resetSwipePosition() {
+    // Smooth geri dönüş animasyonu
     const steps = 20;
     const stepDuration = Duration(milliseconds: 10);
 
@@ -193,27 +209,29 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
   }
 
   Future<void> _nextCardWithAnimation() async {
+    // Fade out
     await _fadeAnimationController.reverse();
 
+    // Reset animasyon değerleri
     setState(() {
       _swipeOffset = 0.0;
       _rotationAngle = 0.0;
       _scale = 1.0;
       _isSwipeInProgress = false;
-      // Video pozisyonunu sıfırla
-      _currentVideoPosition = null;
-      // Video player key'ini de yenile
-      _videoPlayerKey = GlobalKey<OptimizedVideoPlayerState>();
     });
 
-    // Yeni filmi al
+    // Sonraki filmi al
     _currentMovie = _movieService.getNextMovie();
 
+    // Animasyonları resetle
     _swipeAnimationController.reset();
+
+    // Fade in
     await _fadeAnimationController.forward();
   }
 
   void _showFeedback(bool isLike) {
+    // Haptic feedback
     HapticFeedback.lightImpact();
 
     ScaffoldMessenger.of(context).showSnackBar(
@@ -248,57 +266,42 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
       return;
     }
 
-    // Mevcut video pozisyonunu al
-    final currentState = _videoPlayerKey?.currentState;
+    // Mevcut video pozisyonunu al - önce videoyu başlat sonra pozisyonu al
+    final currentState = _videoPlayerKey.currentState;
     if (currentState != null) {
       _currentVideoPosition = currentState.currentPosition ?? Duration.zero;
-      print(
-        'Ana ekran video pozisyonu: ${_currentVideoPosition?.inSeconds} saniye',
-      );
+      print('Ana ekran video pozisyonu: ${_currentVideoPosition?.inSeconds} saniye');
     } else {
       _currentVideoPosition = Duration.zero;
       print('Video player state bulunamadı, sıfırdan başlayacak');
     }
-
-    // Tam ekrana geçerken otomatik yatay çevir
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
 
     showDialog(
       context: context,
       barrierDismissible: true,
       useSafeArea: false,
       builder: (context) {
-        final GlobalKey<OptimizedVideoPlayerState> fullscreenPlayerKey =
-            GlobalKey();
-
+        final GlobalKey<OptimizedVideoPlayerState> fullscreenPlayerKey = GlobalKey();
+        
         return PopScope(
           onPopInvokedWithResult: (didPop, result) {
+            // Dialog kapanırken fullscreen player'dan pozisyonu al ve ana player'a aktar
             if (didPop) {
-              final fullscreenPosition =
-                  fullscreenPlayerKey.currentState?.currentPosition;
+              final fullscreenPosition = fullscreenPlayerKey.currentState?.currentPosition;
               if (fullscreenPosition != null) {
-                print(
-                  'Fullscreen pozisyonu: ${fullscreenPosition.inSeconds} saniye',
-                );
+                print('Fullscreen pozisyonu: ${fullscreenPosition.inSeconds} saniye');
+                // Ana video player'a pozisyonu aktar
                 Future.delayed(Duration(milliseconds: 100), () {
-                  _videoPlayerKey?.currentState?.seekTo(fullscreenPosition);
+                  _videoPlayerKey.currentState?.seekTo(fullscreenPosition);
                 });
               }
-
-              // Tam ekrandan çıkışta dikey moda geri dön
-              SystemChrome.setPreferredOrientations([
-                DeviceOrientation.portraitUp,
-                DeviceOrientation.portraitDown,
-              ]);
             }
           },
           child: Scaffold(
             backgroundColor: Colors.black,
             body: Stack(
               children: [
+                // Video player - Tam ekran
                 Center(
                   child: AspectRatio(
                     aspectRatio: 16 / 9,
@@ -312,6 +315,7 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
                     ),
                   ),
                 ),
+                // Kapatma butonu - Safe area'da
                 Positioned(
                   top: MediaQuery.of(context).padding.top + 10,
                   right: 20,
@@ -319,40 +323,35 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
                     color: Colors.transparent,
                     child: InkWell(
                       onTap: () {
-                        final fullscreenPosition =
-                            fullscreenPlayerKey.currentState?.currentPosition;
+                        // Dialog kapatılırken fullscreen player'dan pozisyonu al
+                        final fullscreenPosition = fullscreenPlayerKey.currentState?.currentPosition;
                         if (fullscreenPosition != null) {
-                          print(
-                            'Kapatma butonu - Fullscreen pozisyonu: ${fullscreenPosition.inSeconds} saniye',
-                          );
+                          print('Kapatma butonu - Fullscreen pozisyonu: ${fullscreenPosition.inSeconds} saniye');
+                          // Ana video player'a pozisyonu aktar
                           Future.delayed(Duration(milliseconds: 100), () {
-                            _videoPlayerKey?.currentState?.seekTo(
-                              fullscreenPosition,
-                            );
+                            _videoPlayerKey.currentState?.seekTo(fullscreenPosition);
                           });
                         }
-
-                        // Kapatma butonuna basınca dikey moda geri dön
-                        SystemChrome.setPreferredOrientations([
-                          DeviceOrientation.portraitUp,
-                          DeviceOrientation.portraitDown,
-                        ]);
-
                         Navigator.pop(context);
                       },
                       borderRadius: BorderRadius.circular(25),
-                      child: Container(
-                        padding: EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.7),
-                          shape: BoxShape.circle,
+                        child: Container(
+                          padding: EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.7),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.close,
+                            color: Colors.white,
+                            size: 24,
+                          ),
                         ),
-                        child: Icon(Icons.close, color: Colors.white, size: 24),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         );
@@ -373,9 +372,7 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
                 Text('This is a sample UI. You can integrate your API here.'),
                 if (title == 'Statistics') ...[
                   SizedBox(height: 10),
-                  Text(
-                    '📊 Toplam eylem: ${_movieService.totalActionsRecorded}',
-                  ),
+                  Text('� Toplam eylem: ${_movieService.totalActionsRecorded}'),
                   Text(
                     '🎬 Batch\'te kalan: ${_movieService.moviesRemainingInBatch}',
                   ),
@@ -431,17 +428,28 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
     );
   }
 
+  // Film türüne göre renk döndür - Tema Sistemi
   Color _getMovieColor(Movie movie) {
     if (movie.genre.isEmpty) return AppTheme.primaryOrange;
     return AppTheme.getGenreColor(movie.genre.first);
   }
 
+  // Film rating'ini hesapla (basit algoritma)
   double _calculateMovieRating(Movie movie) {
+    // Basit bir rating algoritması
     double rating = 5.0;
+
+    // Yıla göre bonus
     if (movie.year > 2015) rating += 1.0;
     if (movie.year > 2020) rating += 0.5;
+
+    // Tür çeşitliliğine göre bonus
     rating += movie.genre.length * 0.2;
+
+    // Cast sayısına göre bonus
     rating += movie.cast.length * 0.1;
+
+    // Maksimum 10, minimum 1
     return rating.clamp(1.0, 10.0);
   }
 
@@ -532,16 +540,20 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
               height: double.infinity,
               child: Stack(
                 children: [
+                  // Arka plan gradient
                   Container(
                     decoration: BoxDecoration(
                       gradient: AppTheme.backgroundGradient,
                     ),
                   ),
 
-                  // Ana kart
+                  // Ana kart - Tinder benzeri, yukarı taşındı
                   Center(
                     child: Transform.translate(
-                      offset: Offset(_swipeOffset, -30),
+                      offset: Offset(
+                        _swipeOffset,
+                        -30,
+                      ), // Y ekseninde 30 piksel yukarı
                       child: Transform.rotate(
                         angle: _rotationAngle,
                         child: Transform.scale(
@@ -557,10 +569,12 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
                                 borderRadius: BorderRadius.circular(20),
                                 child: Stack(
                                   children: [
-                                    // Video container
+                                    // Video/İçerik container - Daha büyük yapıldı
                                     Container(
                                       width: double.infinity,
-                                      height: screenHeight * 0.58,
+                                      height:
+                                          screenHeight *
+                                          0.58, // 0.55'den 0.58'e çıkarıldı
                                       decoration: BoxDecoration(
                                         borderRadius: BorderRadius.only(
                                           topLeft: Radius.circular(20),
@@ -585,8 +599,10 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
                                                           _getMovieColor(
                                                             _currentMovie!,
                                                           ),
-                                                      autoPlay: false,
+                                                      autoPlay:
+                                                          false, // true'dan false'a - hızlı yükleme
                                                     ),
+                                                    // Subtle play button overlay
                                                     Positioned(
                                                       top: 16,
                                                       right: 16,
@@ -694,7 +710,7 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
                                       ),
                                     ),
 
-                                    // Swipe overlay
+                                    // Swipe overlay effects
                                     if (_swipeOffset.abs() > 50)
                                       Positioned.fill(
                                         child: Container(
@@ -731,14 +747,18 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
                                         ),
                                       ),
 
-                                    // Film bilgileri
+                                    // Film bilgileri container - Daha küçük yapıldı
                                     Positioned(
                                       bottom: 0,
                                       left: 0,
                                       right: 0,
                                       child: Container(
-                                        height: screenHeight * 0.17,
-                                        padding: EdgeInsets.all(16),
+                                        height:
+                                            screenHeight *
+                                            0.17, // 0.2'den 0.17'ye düşürüldü
+                                        padding: EdgeInsets.all(
+                                          16,
+                                        ), // 12'den 16'ya artırıldı
                                         decoration: BoxDecoration(
                                           color: AppTheme.white,
                                           borderRadius: BorderRadius.only(
@@ -752,6 +772,7 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
                                                 CrossAxisAlignment.start,
                                             mainAxisSize: MainAxisSize.min,
                                             children: [
+                                              // Film başlığı ve rating - Kompakt
                                               Row(
                                                 children: [
                                                   Expanded(
@@ -760,25 +781,30 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
                                                       style:
                                                           Theme.of(context)
                                                               .textTheme
-                                                              .titleLarge,
-                                                      maxLines: 1,
+                                                              .titleLarge, // headlineSmall'dan titleLarge'a
+                                                      maxLines:
+                                                          1, // 2'den 1'e düşürüldü
                                                       overflow:
                                                           TextOverflow.ellipsis,
                                                     ),
                                                   ),
-                                                  SizedBox(width: 8),
+                                                  SizedBox(
+                                                    width: 8,
+                                                  ), // 10'dan 8'e
                                                   Container(
                                                     padding:
                                                         EdgeInsets.symmetric(
-                                                          horizontal: 10,
-                                                          vertical: 6,
+                                                          horizontal:
+                                                              10, // 8'den 10'a
+                                                          vertical:
+                                                              6, // 4'den 6'ya
                                                         ),
                                                     decoration: BoxDecoration(
                                                       color:
                                                           AppTheme.primaryRed,
                                                       borderRadius:
                                                           BorderRadius.circular(
-                                                            18,
+                                                            18, // 15'den 18'e
                                                           ),
                                                     ),
                                                     child: Row(
@@ -788,9 +814,12 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
                                                         Icon(
                                                           Icons.star,
                                                           color: AppTheme.white,
-                                                          size: 14,
+                                                          size:
+                                                              14, // 12'den 14'e
                                                         ),
-                                                        SizedBox(width: 4),
+                                                        SizedBox(
+                                                          width: 4, // 2'den 4'e
+                                                        ),
                                                         Text(
                                                           _calculateMovieRating(
                                                             _currentMovie!,
@@ -798,28 +827,33 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
                                                           style:
                                                               Theme.of(context)
                                                                   .textTheme
-                                                                  .labelMedium,
+                                                                  .labelMedium, // labelSmall'dan labelMedium'a
                                                         ),
                                                       ],
                                                     ),
                                                   ),
                                                 ],
                                               ),
-                                              SizedBox(height: 10),
+                                              SizedBox(
+                                                height: 10, // 6'dan 10'a
+                                              ),
+                                              // Film detayları - Kompakt
                                               _buildInfoRow(
                                                 Icons.person,
                                                 'Director',
                                                 _currentMovie!.director,
                                               ),
-                                              SizedBox(height: 4),
+                                              SizedBox(height: 4), // 8'den 4'e
                                               _buildInfoRow(
                                                 Icons.category,
                                                 'Genre',
                                                 _currentMovie!.genre
                                                     .take(2)
-                                                    .join(', '),
+                                                    .join(
+                                                      ', ',
+                                                    ), // Sadece ilk 2 tür
                                               ),
-                                              SizedBox(height: 4),
+                                              SizedBox(height: 4), // 8'den 4'e
                                               _buildInfoRow(
                                                 Icons.calendar_today,
                                                 'Year',
@@ -839,7 +873,7 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
                                       ),
                                     ),
 
-                                    // Tam ekran butonu
+                                    // Tam ekran butonu - Düzeltildi
                                     Positioned(
                                       top: 20,
                                       right: 20,
@@ -867,37 +901,40 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
                     ),
                   ),
 
-                  // Alt butonlar
+                  // Alt butonlar - Daha aşağı taşındı
                   Positioned(
-                    bottom: 20,
+                    bottom: 20, // 50'den 20'ye düşürüldü
                     left: 0,
                     right: 0,
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
+                        // Dislike butonu - Biraz büyütüldü
                         GestureDetector(
                           onTap: () => _animateSwipe(false),
                           child: Container(
-                            width: 65,
-                            height: 65,
+                            width: 65, // 60'dan 65'e
+                            height: 65, // 60'dan 65'e
                             decoration: AppTheme.dislikeButtonDecoration,
                             child: Icon(
                               Icons.close,
                               color: AppTheme.secondaryGrey,
-                              size: 32,
+                              size: 32, // 30'dan 32'ye
                             ),
                           ),
                         ),
+
+                        // Like butonu - Biraz büyütüldü
                         GestureDetector(
                           onTap: () => _animateSwipe(true),
                           child: Container(
-                            width: 65,
-                            height: 65,
+                            width: 65, // 60'dan 65'e
+                            height: 65, // 60'dan 65'e
                             decoration: AppTheme.buttonDecoration,
                             child: Icon(
                               Icons.favorite,
                               color: AppTheme.white,
-                              size: 32,
+                              size: 32, // 30'dan 32'ye
                             ),
                           ),
                         ),

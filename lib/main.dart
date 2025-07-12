@@ -1,5 +1,7 @@
 import 'package:filmgrid/firebase_options.dart';
+import 'package:filmgrid/views/login_view.dart';
 import 'package:filmgrid/views/swipe_view.dart';
+import 'package:filmgrid/theme/app_theme.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -75,14 +77,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'FilmGrid',
-      theme: ThemeData(
-        fontFamily: "Caveat Brush",
-        primaryColor: Color(0XFF537D5D),
-        colorScheme: ColorScheme.light(
-          primary: Color(0xFFF7F7F7),
-          secondary: Color(0xFF9EBC8A),
-        ),
-      ),
+      theme: AppTheme.theme,
       home: const SwipeView(),
       // Error handling için
       builder: (context, child) {

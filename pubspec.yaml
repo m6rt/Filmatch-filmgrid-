@@ -78,6 +78,7 @@ flutter:
   assets:
    - assets/images/
    - .env
+   - assets/movies_database.json
 
   fonts:
      - family: Caveat Brush

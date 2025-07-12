@@ -2,6 +2,7 @@ import 'package:filmgrid/main.dart';
 import 'package:filmgrid/services/auth_service.dart';
 import 'package:filmgrid/views/forgot_password.dart';
 import 'package:filmgrid/views/register_view.dart';
+import 'package:filmgrid/theme/app_theme.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:filmgrid/services/auth_page.dart';
@@ -23,7 +24,7 @@ class _LoginviewState extends State<Loginview> {
       SnackBar(
         content: Text(message),
         duration: const Duration(seconds: 3),
-        backgroundColor: Colors.black,
+        backgroundColor: AppTheme.darkGrey, // Koyu gri SnackBar
       ),
     );
   }
@@ -125,7 +126,7 @@ class _LoginviewState extends State<Loginview> {
     final screenHeight = MediaQuery.of(context).size.height;
 
     return Scaffold(
-      backgroundColor: Theme.of(context).primaryColor,
+      backgroundColor: AppTheme.white, // Beyaz arka plan
       body: SafeArea(
         top: false,
         bottom: true,
@@ -156,9 +157,13 @@ class _LoginviewState extends State<Loginview> {
                     vertical: screenHeight * 0.32,
                     horizontal: screenWidth * 0.09,
                   ),
-                  child:  Text(
+                  child: Text(
                     "Welcome,",
-                    style: TextStyle(fontFamily: 'Caveat Brush', fontSize: 65,color: Theme.of(context).colorScheme.secondary),
+                    style: TextStyle(
+                      fontFamily: 'Caveat Brush',
+                      fontSize: 65,
+                      color: AppTheme.black, // Siyah yazı
+                    ),
                   ),
                 ),
                 Padding(
@@ -166,9 +171,13 @@ class _LoginviewState extends State<Loginview> {
                     vertical: screenHeight * 0.39,
                     horizontal: screenWidth * 0.09,
                   ),
-                  child:  Text(
+                  child: Text(
                     "Please Login",
-                    style: TextStyle(fontFamily: 'Caveat Brush', fontSize: 65,color: Theme.of(context).colorScheme.secondary),
+                    style: TextStyle(
+                      fontFamily: 'Caveat Brush',
+                      fontSize: 65,
+                      color: AppTheme.black, // Siyah yazı
+                    ),
                   ),
                 ),
                 Padding(
@@ -178,10 +187,10 @@ class _LoginviewState extends State<Loginview> {
                   ),
                   child: Container(
                     decoration: BoxDecoration(
-                      color: Theme.of(context).primaryColor,
+                      color: AppTheme.white, // Beyaz arka plan
                       borderRadius: BorderRadius.circular(350),
                       border: Border.all(
-                        color: Theme.of(context).colorScheme.secondary,
+                        color: AppTheme.darkGrey, // Koyu gri kenarlık
                         width: 1,
                       ),
                     ),
@@ -191,14 +200,14 @@ class _LoginviewState extends State<Loginview> {
                       padding: EdgeInsets.symmetric(horizontal: 15),
                       child: TextField(
                         style: TextStyle(
-                          color: Theme.of(context).colorScheme.secondary,
+                          color: AppTheme.black, // Siyah yazı
                         ),
-                        cursorColor: Colors.white,
+                        cursorColor: AppTheme.primaryRed, // Kırmızı cursor
                         controller: _emailController,
                         decoration: InputDecoration(
                           hintText: "Email Adress",
                           hintStyle: TextStyle(
-                            color: Theme.of(context).colorScheme.secondary,
+                            color: AppTheme.secondaryGrey, // Gri hint
                             fontFamily: 'PlayfairDisplay',
                             fontSize: 12,
                           ),
@@ -216,10 +225,10 @@ class _LoginviewState extends State<Loginview> {
                   ),
                   child: Container(
                     decoration: BoxDecoration(
-                      color: Theme.of(context).primaryColor,
+                      color: AppTheme.white, // Beyaz arka plan
                       borderRadius: BorderRadius.circular(350),
                       border: Border.all(
-                        color: Theme.of(context).colorScheme.secondary,
+                        color: AppTheme.darkGrey, // Koyu gri kenarlık
                         width: 1,
                       ),
                     ),
@@ -229,15 +238,15 @@ class _LoginviewState extends State<Loginview> {
                       padding: EdgeInsets.symmetric(horizontal: 15),
                       child: TextField(
                         style: TextStyle(
-                          color: Theme.of(context).colorScheme.secondary,
+                          color: AppTheme.black, // Siyah yazı
                         ),
-                        cursorColor: Colors.white,
+                        cursorColor: AppTheme.primaryRed, // Kırmızı cursor
                         obscureText: true,
                         controller: _passwordController,
                         decoration: InputDecoration(
                           hintText: "Password",
                           hintStyle: TextStyle(
-                            color: Theme.of(context).colorScheme.secondary,
+                            color: AppTheme.secondaryGrey, // Gri hint
                             fontFamily: 'PlayfairDisplay',
                             fontSize: 12,
                           ),
@@ -265,8 +274,8 @@ class _LoginviewState extends State<Loginview> {
                       );
                     },
                     style: TextButton.styleFrom(
-                      foregroundColor: Theme.of(context).colorScheme.secondary,
-                      backgroundColor: Theme.of(context).primaryColor,
+                      foregroundColor: AppTheme.black, // Siyah yazı
+                      backgroundColor: AppTheme.white, // Beyaz arka plan
                     ),
                     child: const Text(
                       "Forgot Password ",
@@ -294,8 +303,8 @@ class _LoginviewState extends State<Loginview> {
                       );
                     },
                     style: TextButton.styleFrom(
-                      foregroundColor: Theme.of(context).colorScheme.secondary,
-                      backgroundColor: Theme.of(context).primaryColor,
+                      foregroundColor: AppTheme.black, // Siyah yazı
+                      backgroundColor: AppTheme.white, // Beyaz arka plan
                     ),
                     child: const Text(
                       "Don't have an account ",
@@ -315,10 +324,10 @@ class _LoginviewState extends State<Loginview> {
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(350),
                       border: Border.all(
-                        color: Theme.of(context).colorScheme.secondary,
-                        width: 1,
+                        color: AppTheme.primaryRed, // Kırmızı kenarlık
+                        width: 2,
                       ),
-                      color: Theme.of(context).primaryColor,
+                      color: AppTheme.white, // Beyaz arka plan
                     ),
                     width: 170,
                     height: 60,
@@ -335,9 +344,8 @@ class _LoginviewState extends State<Loginview> {
                           );
                         },
                         style: TextButton.styleFrom(
-                          foregroundColor:
-                              Theme.of(context).colorScheme.secondary,
-                          backgroundColor: Theme.of(context).primaryColor,
+                          foregroundColor: AppTheme.black, // Siyah yazı
+                          backgroundColor: AppTheme.white, // Beyaz arka plan
                         ),
                         child: const Text(
                           "Sign In",
@@ -359,7 +367,7 @@ class _LoginviewState extends State<Loginview> {
                   ), //0.6 0.84
                   child: MySeparator(
                     height: 1,
-                    color: Theme.of(context).colorScheme.secondary,
+                    color: AppTheme.darkGrey, // Koyu gri çizgi
                   ),
                 ),
                 Padding(
@@ -369,12 +377,12 @@ class _LoginviewState extends State<Loginview> {
                     0,
                     0,
                   ), //0.4 0.83
-                  child:  Text(
+                  child: Text(
                     "or Sign in With",
                     style: TextStyle(
                       fontFamily: 'PlayfairDisplay',
                       fontSize: 10,
-                      color: Theme.of(context).colorScheme.secondary,
+                      color: AppTheme.black, // Siyah yazı
                     ),
                   ),
                 ),
@@ -387,7 +395,7 @@ class _LoginviewState extends State<Loginview> {
                   ), // 0.84 0.6
                   child: MySeparator(
                     height: 1,
-                    color: Theme.of(context).colorScheme.secondary,
+                    color: AppTheme.darkGrey, // Koyu gri çizgi
                   ),
                 ),
                 Padding(
@@ -400,11 +408,11 @@ class _LoginviewState extends State<Loginview> {
                   child: Container(
                     decoration: BoxDecoration(
                       border: Border.all(
-                        color: Theme.of(context).colorScheme.secondary,
-                        width: 1,
+                        color: AppTheme.primaryRed, // Kırmızı kenarlık
+                        width: 2,
                       ),
                       borderRadius: BorderRadius.circular(350),
-                      color: Theme.of(context).primaryColor,
+                      color: AppTheme.white, // Beyaz arka plan
                     ),
                     height: 70,
                     width: 70,
