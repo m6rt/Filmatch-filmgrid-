@@ -328,32 +328,52 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
   }
 
   void _showSampleDialog(String title) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isTablet = screenWidth > 600;
+
     showDialog(
       context: context,
       builder:
           (context) => AlertDialog(
-            title: Text('📱 $title'),
+            title: Text(
+              '📱 $title',
+              style: TextStyle(fontSize: isTablet ? 20 : 18),
+            ),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('This is a sample UI. You can integrate your API here.'),
+                Text(
+                  'This is a sample UI. You can integrate your API here.',
+                  style: TextStyle(fontSize: isTablet ? 16 : 14),
+                ),
                 if (title == 'Statistics') ...[
-                  SizedBox(height: 10),
+                  SizedBox(height: isTablet ? 15 : 10),
                   Text(
                     '📊 Toplam eylem: ${_movieService.totalActionsRecorded}',
+                    style: TextStyle(fontSize: isTablet ? 15 : 13),
                   ),
                   Text(
                     '🎬 Batch\'te kalan: ${_movieService.moviesRemainingInBatch}',
+                    style: TextStyle(fontSize: isTablet ? 15 : 13),
                   ),
-                  SizedBox(height: 10),
+                  SizedBox(height: isTablet ? 15 : 10),
                   ElevatedButton(
                     onPressed: () {
                       _movieService.printUserPreferences();
                       _movieService.printBatchStatus();
                       Navigator.pop(context);
                     },
-                    child: Text('Batch Durumunu Konsola Yazdır'),
+                    style: ElevatedButton.styleFrom(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isTablet ? 20 : 16,
+                        vertical: isTablet ? 12 : 8,
+                      ),
+                    ),
+                    child: Text(
+                      'Batch Durumunu Konsola Yazdır',
+                      style: TextStyle(fontSize: isTablet ? 14 : 12),
+                    ),
                   ),
                 ],
               ],
@@ -361,7 +381,16 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: Text('Close'),
+                style: TextButton.styleFrom(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isTablet ? 20 : 16,
+                    vertical: isTablet ? 12 : 8,
+                  ),
+                ),
+                child: Text(
+                  'Close',
+                  style: TextStyle(fontSize: isTablet ? 16 : 14),
+                ),
               ),
             ],
           ),
@@ -383,21 +412,29 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
     super.dispose();
   }
 
-  Widget _buildInfoRow(IconData icon, String label, String value) {
+  Widget _buildInfoRow(
+    IconData icon,
+    String label,
+    String value,
+    bool isTablet,
+  ) {
     return Row(
       children: [
-        Icon(icon, size: 16, color: AppTheme.secondaryGrey),
-        SizedBox(width: 8),
+        Icon(icon, size: isTablet ? 18 : 16, color: AppTheme.secondaryGrey),
+        SizedBox(width: isTablet ? 10 : 8),
         Text(
           '$label: ',
-          style: Theme.of(
-            context,
-          ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w500),
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            fontWeight: FontWeight.w500,
+            fontSize: isTablet ? 14 : 12,
+          ),
         ),
         Expanded(
           child: Text(
             value,
-            style: Theme.of(context).textTheme.bodyMedium,
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(fontSize: isTablet ? 15 : 13),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -422,6 +459,10 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    final isTablet = screenWidth > 600;
+
     if (_isLoading) {
       return Scaffold(
         backgroundColor: AppTheme.lightGrey,
@@ -430,12 +471,13 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               CircularProgressIndicator(color: AppTheme.primaryRed),
-              SizedBox(height: 20),
+              SizedBox(height: screenHeight * 0.025),
               Text(
                 SwipeViewConstants.loadingMessage,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w500),
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  fontWeight: FontWeight.w500,
+                  fontSize: isTablet ? 18 : 16,
+                ),
               ),
             ],
           ),
@@ -447,37 +489,52 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
       return Scaffold(
         backgroundColor: AppTheme.lightGrey,
         body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.movie_creation_outlined,
-                size: 80,
-                color: AppTheme.darkGrey,
-              ),
-              SizedBox(height: 20),
-              Text(
-                SwipeViewConstants.noMovieMessage,
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
-              SizedBox(height: 10),
-              Text(
-                SwipeViewConstants.restartMessage,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-              SizedBox(height: 30),
-              ElevatedButton(
-                onPressed: _loadMovies,
-                child: Text(SwipeViewConstants.retryButtonText),
-              ),
-            ],
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.1),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.movie_creation_outlined,
+                  size: isTablet ? 120 : 80,
+                  color: AppTheme.darkGrey,
+                ),
+                SizedBox(height: screenHeight * 0.025),
+                Text(
+                  SwipeViewConstants.noMovieMessage,
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontSize: isTablet ? 24 : 20,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                SizedBox(height: screenHeight * 0.015),
+                Text(
+                  SwipeViewConstants.restartMessage,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(fontSize: isTablet ? 16 : 14),
+                  textAlign: TextAlign.center,
+                ),
+                SizedBox(height: screenHeight * 0.04),
+                ElevatedButton(
+                  onPressed: _loadMovies,
+                  style: ElevatedButton.styleFrom(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isTablet ? 32 : 24,
+                      vertical: isTablet ? 16 : 12,
+                    ),
+                  ),
+                  child: Text(
+                    SwipeViewConstants.retryButtonText,
+                    style: TextStyle(fontSize: isTablet ? 16 : 14),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       );
     }
-
-    final screenWidth = MediaQuery.of(context).size.width;
-    final screenHeight = MediaQuery.of(context).size.height;
 
     return Scaffold(
       appBar: AppBar(
@@ -542,13 +599,19 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
                             child: Container(
                               width:
                                   screenWidth *
-                                  SwipeViewConstants.cardWidthRatio,
+                                  (isTablet
+                                      ? 0.7
+                                      : SwipeViewConstants.cardWidthRatio),
                               height:
                                   screenHeight *
-                                  SwipeViewConstants.cardHeightRatio,
+                                  (isTablet
+                                      ? 0.8
+                                      : SwipeViewConstants.cardHeightRatio),
                               decoration: AppTheme.cardDecoration,
                               child: ClipRRect(
-                                borderRadius: BorderRadius.circular(20),
+                                borderRadius: BorderRadius.circular(
+                                  isTablet ? 24 : 20,
+                                ),
                                 child: Stack(
                                   children: [
                                     // Video container
@@ -559,14 +622,22 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
                                           SwipeViewConstants.videoHeightRatio,
                                       decoration: BoxDecoration(
                                         borderRadius: BorderRadius.only(
-                                          topLeft: Radius.circular(20),
-                                          topRight: Radius.circular(20),
+                                          topLeft: Radius.circular(
+                                            isTablet ? 24 : 20,
+                                          ),
+                                          topRight: Radius.circular(
+                                            isTablet ? 24 : 20,
+                                          ),
                                         ),
                                       ),
                                       child: ClipRRect(
                                         borderRadius: BorderRadius.only(
-                                          topLeft: Radius.circular(20),
-                                          topRight: Radius.circular(20),
+                                          topLeft: Radius.circular(
+                                            isTablet ? 24 : 20,
+                                          ),
+                                          topRight: Radius.circular(
+                                            isTablet ? 24 : 20,
+                                          ),
                                         ),
                                         child:
                                             _currentMovie?.trailerUrl != null
@@ -584,18 +655,20 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
                                                       autoPlay: false,
                                                     ),
                                                     Positioned(
-                                                      top: 16,
-                                                      right: 16,
+                                                      top: isTablet ? 20 : 16,
+                                                      right: isTablet ? 20 : 16,
                                                       child: Container(
                                                         padding: EdgeInsets.all(
-                                                          8,
+                                                          isTablet ? 12 : 8,
                                                         ),
                                                         decoration: BoxDecoration(
                                                           color: Colors.black
                                                               .withOpacity(0.5),
                                                           borderRadius:
                                                               BorderRadius.circular(
-                                                                20,
+                                                                isTablet
+                                                                    ? 24
+                                                                    : 20,
                                                               ),
                                                         ),
                                                         child: Row(
@@ -606,16 +679,27 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
                                                               Icons.play_arrow,
                                                               color:
                                                                   Colors.white,
-                                                              size: 16,
+                                                              size:
+                                                                  isTablet
+                                                                      ? 20
+                                                                      : 16,
                                                             ),
-                                                            SizedBox(width: 4),
+                                                            SizedBox(
+                                                              width:
+                                                                  isTablet
+                                                                      ? 6
+                                                                      : 4,
+                                                            ),
                                                             Text(
                                                               'Trailer',
                                                               style: TextStyle(
                                                                 color:
                                                                     Colors
                                                                         .white,
-                                                                fontSize: 12,
+                                                                fontSize:
+                                                                    isTablet
+                                                                        ? 14
+                                                                        : 12,
                                                                 fontWeight:
                                                                     FontWeight
                                                                         .w500,
@@ -653,22 +737,38 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
                                                       children: [
                                                         Icon(
                                                           Icons.movie,
-                                                          size: 80,
+                                                          size:
+                                                              isTablet
+                                                                  ? 120
+                                                                  : 80,
                                                           color: Colors.white,
                                                         ),
-                                                        SizedBox(height: 20),
+                                                        SizedBox(
+                                                          height:
+                                                              isTablet
+                                                                  ? 24
+                                                                  : 20,
+                                                        ),
                                                         Text(
                                                           'No Trailer Available',
                                                           style: TextStyle(
                                                             color: Colors.white,
-                                                            fontSize: 18,
+                                                            fontSize:
+                                                                isTablet
+                                                                    ? 22
+                                                                    : 18,
                                                             fontWeight:
                                                                 FontWeight.bold,
                                                             fontFamily:
                                                                 'PlayfairDisplay',
                                                           ),
                                                         ),
-                                                        SizedBox(height: 10),
+                                                        SizedBox(
+                                                          height:
+                                                              isTablet
+                                                                  ? 12
+                                                                  : 10,
+                                                        ),
                                                         Text(
                                                           _currentMovie
                                                                   ?.title ??
@@ -676,7 +776,10 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
                                                           style: TextStyle(
                                                             color:
                                                                 Colors.white70,
-                                                            fontSize: 14,
+                                                            fontSize:
+                                                                isTablet
+                                                                    ? 16
+                                                                    : 14,
                                                             fontFamily:
                                                                 'PlayfairDisplay',
                                                           ),
@@ -700,13 +803,19 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
                                                     : AppTheme.secondaryGrey)
                                                 .withOpacity(0.4),
                                             borderRadius: BorderRadius.only(
-                                              topLeft: Radius.circular(20),
-                                              topRight: Radius.circular(20),
+                                              topLeft: Radius.circular(
+                                                isTablet ? 24 : 20,
+                                              ),
+                                              topRight: Radius.circular(
+                                                isTablet ? 24 : 20,
+                                              ),
                                             ),
                                           ),
                                           child: Center(
                                             child: Container(
-                                              padding: EdgeInsets.all(20),
+                                              padding: EdgeInsets.all(
+                                                isTablet ? 24 : 20,
+                                              ),
                                               decoration: BoxDecoration(
                                                 color: AppTheme.white,
                                                 shape: BoxShape.circle,
@@ -715,7 +824,7 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
                                                 _swipeOffset > 0
                                                     ? Icons.favorite
                                                     : Icons.close,
-                                                size: 50,
+                                                size: isTablet ? 60 : 50,
                                                 color:
                                                     _swipeOffset > 0
                                                         ? AppTheme.primaryRed
@@ -736,12 +845,18 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
                                         height:
                                             screenHeight *
                                             SwipeViewConstants.infoHeightRatio,
-                                        padding: EdgeInsets.all(16),
+                                        padding: EdgeInsets.all(
+                                          isTablet ? 20 : 16,
+                                        ),
                                         decoration: BoxDecoration(
                                           color: AppTheme.white,
                                           borderRadius: BorderRadius.only(
-                                            bottomLeft: Radius.circular(20),
-                                            bottomRight: Radius.circular(20),
+                                            bottomLeft: Radius.circular(
+                                              isTablet ? 24 : 20,
+                                            ),
+                                            bottomRight: Radius.circular(
+                                              isTablet ? 24 : 20,
+                                            ),
                                           ),
                                         ),
                                         child: SingleChildScrollView(
@@ -755,28 +870,39 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
                                                   Expanded(
                                                     child: Text(
                                                       _currentMovie!.title,
-                                                      style:
-                                                          Theme.of(context)
-                                                              .textTheme
-                                                              .titleLarge,
+                                                      style: Theme.of(context)
+                                                          .textTheme
+                                                          .titleLarge
+                                                          ?.copyWith(
+                                                            fontSize:
+                                                                isTablet
+                                                                    ? 24
+                                                                    : 20,
+                                                          ),
                                                       maxLines: 1,
                                                       overflow:
                                                           TextOverflow.ellipsis,
                                                     ),
                                                   ),
-                                                  SizedBox(width: 8),
+                                                  SizedBox(
+                                                    width: isTablet ? 12 : 8,
+                                                  ),
                                                   Container(
                                                     padding:
                                                         EdgeInsets.symmetric(
-                                                          horizontal: 10,
-                                                          vertical: 6,
+                                                          horizontal:
+                                                              isTablet
+                                                                  ? 14
+                                                                  : 10,
+                                                          vertical:
+                                                              isTablet ? 8 : 6,
                                                         ),
                                                     decoration: BoxDecoration(
                                                       color:
                                                           AppTheme.primaryRed,
                                                       borderRadius:
                                                           BorderRadius.circular(
-                                                            18,
+                                                            isTablet ? 22 : 18,
                                                           ),
                                                     ),
                                                     child: Row(
@@ -786,62 +912,91 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
                                                         Icon(
                                                           Icons.star,
                                                           color: AppTheme.white,
-                                                          size: 14,
+                                                          size:
+                                                              isTablet
+                                                                  ? 16
+                                                                  : 14,
                                                         ),
-                                                        SizedBox(width: 4),
+                                                        SizedBox(
+                                                          width:
+                                                              isTablet ? 6 : 4,
+                                                        ),
                                                         Text(
                                                           _calculateMovieRating(
                                                             _currentMovie!,
                                                           ).toStringAsFixed(1),
-                                                          style:
-                                                              Theme.of(context)
-                                                                  .textTheme
-                                                                  .labelMedium,
+                                                          style: Theme.of(
+                                                                context,
+                                                              )
+                                                              .textTheme
+                                                              .labelMedium
+                                                              ?.copyWith(
+                                                                fontSize:
+                                                                    isTablet
+                                                                        ? 14
+                                                                        : 12,
+                                                              ),
                                                         ),
                                                       ],
                                                     ),
                                                   ),
                                                 ],
                                               ),
-                                              SizedBox(height: 10),
+                                              SizedBox(
+                                                height: isTablet ? 12 : 10,
+                                              ),
                                               _buildInfoRow(
                                                 Icons.person,
                                                 'Director',
                                                 _currentMovie!.director,
+                                                isTablet,
                                               ),
-                                              SizedBox(height: 4),
+                                              SizedBox(
+                                                height: isTablet ? 6 : 4,
+                                              ),
                                               _buildInfoRow(
                                                 Icons.category,
                                                 'Genre',
                                                 _currentMovie!.genre
                                                     .take(2)
                                                     .join(', '),
+                                                isTablet,
                                               ),
-                                              SizedBox(height: 4),
+                                              SizedBox(
+                                                height: isTablet ? 6 : 4,
+                                              ),
                                               _buildInfoRow(
                                                 Icons.calendar_today,
                                                 'Year',
                                                 _currentMovie!.year.toString(),
+                                                isTablet,
                                               ),
-                                              SizedBox(height: 4),
+                                              SizedBox(
+                                                height: isTablet ? 6 : 4,
+                                              ),
                                               _buildInfoRow(
                                                 Icons.group,
                                                 'Cast',
                                                 _currentMovie!.cast
                                                     .take(2)
                                                     .join(', '),
+                                                isTablet,
                                               ),
-                                              SizedBox(height: 8),
+                                              SizedBox(
+                                                height: isTablet ? 10 : 8,
+                                              ),
                                               // Description - kutu olmadan
                                               Row(
                                                 children: [
                                                   Icon(
                                                     Icons.description,
-                                                    size: 16,
+                                                    size: isTablet ? 18 : 16,
                                                     color:
                                                         AppTheme.secondaryGrey,
                                                   ),
-                                                  SizedBox(width: 8),
+                                                  SizedBox(
+                                                    width: isTablet ? 10 : 8,
+                                                  ),
                                                   Text(
                                                     'Description: ',
                                                     style: Theme.of(context)
@@ -850,11 +1005,17 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
                                                         ?.copyWith(
                                                           fontWeight:
                                                               FontWeight.w500,
+                                                          fontSize:
+                                                              isTablet
+                                                                  ? 14
+                                                                  : 12,
                                                         ),
                                                   ),
                                                 ],
                                               ),
-                                              SizedBox(height: 6),
+                                              SizedBox(
+                                                height: isTablet ? 8 : 6,
+                                              ),
                                               Text(
                                                 _currentMovie!.description,
                                                 style: Theme.of(
@@ -862,8 +1023,9 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
                                                 ).textTheme.bodySmall?.copyWith(
                                                   color: AppTheme.darkGrey,
                                                   height: 1.4,
+                                                  fontSize: isTablet ? 14 : 12,
                                                 ),
-                                                maxLines: 4,
+                                                maxLines: isTablet ? 5 : 4,
                                                 overflow: TextOverflow.ellipsis,
                                               ),
                                             ],
@@ -874,8 +1036,8 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
 
                                     // Tam ekran butonu
                                     Positioned(
-                                      top: 16,
-                                      right: 16,
+                                      top: isTablet ? 20 : 16,
+                                      right: isTablet ? 20 : 16,
                                       child: Semantics(
                                         label:
                                             SwipeViewConstants.fullscreenLabel,
@@ -893,6 +1055,7 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
                                             icon: Icon(
                                               Icons.fullscreen,
                                               color: Colors.white,
+                                              size: isTablet ? 28 : 24,
                                             ),
                                             tooltip:
                                                 SwipeViewConstants
@@ -913,7 +1076,7 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
 
                   // Alt butonlar
                   Positioned(
-                    bottom: 20,
+                    bottom: isTablet ? 30 : 20,
                     left: 0,
                     right: 0,
                     child: Row(
@@ -926,13 +1089,23 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
                           child: GestureDetector(
                             onTap: () => _animateSwipe(false),
                             child: Container(
-                              width: SwipeViewConstants.actionButtonSize,
-                              height: SwipeViewConstants.actionButtonSize,
+                              width:
+                                  isTablet
+                                      ? 80
+                                      : SwipeViewConstants.actionButtonSize,
+                              height:
+                                  isTablet
+                                      ? 80
+                                      : SwipeViewConstants.actionButtonSize,
                               decoration: AppTheme.dislikeButtonDecoration,
                               child: Icon(
                                 Icons.close,
                                 color: AppTheme.secondaryGrey,
-                                size: SwipeViewConstants.actionButtonIconSize,
+                                size:
+                                    isTablet
+                                        ? 40
+                                        : SwipeViewConstants
+                                            .actionButtonIconSize,
                               ),
                             ),
                           ),
@@ -944,13 +1117,23 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
                           child: GestureDetector(
                             onTap: () => _animateSwipe(true),
                             child: Container(
-                              width: SwipeViewConstants.actionButtonSize,
-                              height: SwipeViewConstants.actionButtonSize,
+                              width:
+                                  isTablet
+                                      ? 80
+                                      : SwipeViewConstants.actionButtonSize,
+                              height:
+                                  isTablet
+                                      ? 80
+                                      : SwipeViewConstants.actionButtonSize,
                               decoration: AppTheme.buttonDecoration,
                               child: Icon(
                                 Icons.favorite,
                                 color: AppTheme.white,
-                                size: SwipeViewConstants.actionButtonIconSize,
+                                size:
+                                    isTablet
+                                        ? 40
+                                        : SwipeViewConstants
+                                            .actionButtonIconSize,
                               ),
                             ),
                           ),
@@ -1117,6 +1300,9 @@ class _CustomFullscreenVideoPlayerState
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isTablet = screenWidth > 600;
+
     return PopScope(
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) {
@@ -1175,9 +1361,11 @@ class _CustomFullscreenVideoPlayerState
                     children: [
                       // Üst Bar - Kapatma Butonu
                       Positioned(
-                        top: MediaQuery.of(context).padding.top + 10,
-                        left: 20,
-                        right: 20,
+                        top:
+                            MediaQuery.of(context).padding.top +
+                            (isTablet ? 15 : 10),
+                        left: isTablet ? 30 : 20,
+                        right: isTablet ? 30 : 20,
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -1187,7 +1375,7 @@ class _CustomFullscreenVideoPlayerState
                                 'Film Trailer',
                                 style: TextStyle(
                                   color: Colors.white,
-                                  fontSize: 18,
+                                  fontSize: isTablet ? 22 : 18,
                                   fontWeight: FontWeight.w600,
                                 ),
                                 maxLines: 1,
@@ -1199,9 +1387,11 @@ class _CustomFullscreenVideoPlayerState
                               color: Colors.transparent,
                               child: InkWell(
                                 onTap: _closeFullscreen,
-                                borderRadius: BorderRadius.circular(25),
+                                borderRadius: BorderRadius.circular(
+                                  isTablet ? 30 : 25,
+                                ),
                                 child: Container(
-                                  padding: EdgeInsets.all(12),
+                                  padding: EdgeInsets.all(isTablet ? 16 : 12),
                                   decoration: BoxDecoration(
                                     color: Colors.black.withOpacity(0.5),
                                     shape: BoxShape.circle,
@@ -1209,7 +1399,7 @@ class _CustomFullscreenVideoPlayerState
                                   child: Icon(
                                     Icons.close,
                                     color: Colors.white,
-                                    size: 24,
+                                    size: isTablet ? 28 : 24,
                                   ),
                                 ),
                               ),
@@ -1224,9 +1414,11 @@ class _CustomFullscreenVideoPlayerState
                           color: Colors.transparent,
                           child: InkWell(
                             onTap: _togglePlayPause,
-                            borderRadius: BorderRadius.circular(40),
+                            borderRadius: BorderRadius.circular(
+                              isTablet ? 50 : 40,
+                            ),
                             child: Container(
-                              padding: EdgeInsets.all(20),
+                              padding: EdgeInsets.all(isTablet ? 28 : 20),
                               decoration: BoxDecoration(
                                 color: AppTheme.primaryRed.withOpacity(0.9),
                                 shape: BoxShape.circle,
@@ -1241,7 +1433,10 @@ class _CustomFullscreenVideoPlayerState
                               child: Icon(
                                 _isPlaying ? Icons.pause : Icons.play_arrow,
                                 color: Colors.white,
-                                size: SwipeViewConstants.playButtonSize,
+                                size:
+                                    isTablet
+                                        ? 50
+                                        : SwipeViewConstants.playButtonSize,
                               ),
                             ),
                           ),
@@ -1250,9 +1445,11 @@ class _CustomFullscreenVideoPlayerState
 
                       // Alt Bar - Progress Bar ve Zaman
                       Positioned(
-                        bottom: MediaQuery.of(context).padding.bottom + 20,
-                        left: 20,
-                        right: 20,
+                        bottom:
+                            MediaQuery.of(context).padding.bottom +
+                            (isTablet ? 30 : 20),
+                        left: isTablet ? 30 : 20,
+                        right: isTablet ? 30 : 20,
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -1264,11 +1461,11 @@ class _CustomFullscreenVideoPlayerState
                                   _formatDuration(_currentPosition),
                                   style: TextStyle(
                                     color: Colors.white,
-                                    fontSize: 14,
+                                    fontSize: isTablet ? 16 : 14,
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
-                                SizedBox(width: 12),
+                                SizedBox(width: isTablet ? 16 : 12),
 
                                 // Progress Bar
                                 Expanded(
@@ -1281,9 +1478,9 @@ class _CustomFullscreenVideoPlayerState
                                       overlayColor: AppTheme.primaryRed
                                           .withOpacity(0.2),
                                       thumbShape: RoundSliderThumbShape(
-                                        enabledThumbRadius: 8,
+                                        enabledThumbRadius: isTablet ? 10 : 8,
                                       ),
-                                      trackHeight: 4,
+                                      trackHeight: isTablet ? 6 : 4,
                                     ),
                                     child: Slider(
                                       value:
@@ -1312,7 +1509,7 @@ class _CustomFullscreenVideoPlayerState
                                   ),
                                 ),
 
-                                SizedBox(width: 12),
+                                SizedBox(width: isTablet ? 16 : 12),
                                 // Zaman - Toplam (tahmini)
                                 Text(
                                   _totalDuration.inSeconds > 0
@@ -1320,14 +1517,14 @@ class _CustomFullscreenVideoPlayerState
                                       : '00:03:00', // Varsayılan trailer süresi
                                   style: TextStyle(
                                     color: Colors.white,
-                                    fontSize: 14,
+                                    fontSize: isTablet ? 16 : 14,
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
                               ],
                             ),
 
-                            SizedBox(height: 20),
+                            SizedBox(height: isTablet ? 30 : 20),
 
                             // Alt Kontroller
                             Row(
@@ -1345,9 +1542,13 @@ class _CustomFullscreenVideoPlayerState
                                       );
                                       _seekTo(newPosition);
                                     },
-                                    borderRadius: BorderRadius.circular(25),
+                                    borderRadius: BorderRadius.circular(
+                                      isTablet ? 30 : 25,
+                                    ),
                                     child: Container(
-                                      padding: EdgeInsets.all(12),
+                                      padding: EdgeInsets.all(
+                                        isTablet ? 16 : 12,
+                                      ),
                                       child: Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
@@ -1355,15 +1556,17 @@ class _CustomFullscreenVideoPlayerState
                                             Icons.replay_10,
                                             color: Colors.white,
                                             size:
-                                                SwipeViewConstants
-                                                    .seekButtonSize,
+                                                isTablet
+                                                    ? 28
+                                                    : SwipeViewConstants
+                                                        .seekButtonSize,
                                           ),
-                                          SizedBox(width: 4),
+                                          SizedBox(width: isTablet ? 6 : 4),
                                           Text(
                                             '10s',
                                             style: TextStyle(
                                               color: Colors.white,
-                                              fontSize: 12,
+                                              fontSize: isTablet ? 14 : 12,
                                             ),
                                           ),
                                         ],
@@ -1372,7 +1575,7 @@ class _CustomFullscreenVideoPlayerState
                                   ),
                                 ),
 
-                                SizedBox(width: 40),
+                                SizedBox(width: isTablet ? 60 : 40),
 
                                 // 10 saniye ileri
                                 Material(
@@ -1386,9 +1589,13 @@ class _CustomFullscreenVideoPlayerState
                                       );
                                       _seekTo(newPosition);
                                     },
-                                    borderRadius: BorderRadius.circular(25),
+                                    borderRadius: BorderRadius.circular(
+                                      isTablet ? 30 : 25,
+                                    ),
                                     child: Container(
-                                      padding: EdgeInsets.all(12),
+                                      padding: EdgeInsets.all(
+                                        isTablet ? 16 : 12,
+                                      ),
                                       child: Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
@@ -1396,15 +1603,17 @@ class _CustomFullscreenVideoPlayerState
                                             Icons.forward_10,
                                             color: Colors.white,
                                             size:
-                                                SwipeViewConstants
-                                                    .seekButtonSize,
+                                                isTablet
+                                                    ? 28
+                                                    : SwipeViewConstants
+                                                        .seekButtonSize,
                                           ),
-                                          SizedBox(width: 4),
+                                          SizedBox(width: isTablet ? 6 : 4),
                                           Text(
                                             '10s',
                                             style: TextStyle(
                                               color: Colors.white,
-                                              fontSize: 12,
+                                              fontSize: isTablet ? 14 : 12,
                                             ),
                                           ),
                                         ],

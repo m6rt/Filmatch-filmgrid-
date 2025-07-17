@@ -148,17 +148,7 @@ class _ProfileViewState extends State<ProfileView> {
             fontWeight: FontWeight.bold,
           ),
         ),
-        actions: [
-          IconButton(
-            onPressed: () async {
-              await _profileService.signOut();
-              if (mounted) {
-                Navigator.pushReplacementNamed(context, '/login');
-              }
-            },
-            icon: Icon(Icons.logout, color: AppTheme.primaryRed),
-          ),
-        ],
+        actions: [],
       ),
       body: Container(
         decoration: BoxDecoration(gradient: AppTheme.backgroundGradient),
