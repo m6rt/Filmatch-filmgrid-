@@ -5,6 +5,7 @@ class Movie {
   final int year;
   final String description;
   final String? trailerUrl;
+  final String posterUrl;
   final List<String> cast;
   final String director;
 
@@ -15,6 +16,7 @@ class Movie {
     required this.year,
     required this.description,
     this.trailerUrl,
+    required this.posterUrl,
     required this.cast,
     required this.director,
   });
@@ -28,6 +30,7 @@ class Movie {
       description: json['description'] ?? '',
       trailerUrl:
           json['trailer_url']?.isNotEmpty == true ? json['trailer_url'] : null,
+      posterUrl: json['poster_url'] ?? '',
       cast: List<String>.from(json['cast'] ?? []),
       director: json['director'] ?? '',
     );
@@ -41,6 +44,7 @@ class Movie {
       'year': year,
       'description': description,
       'trailer_url': trailerUrl,
+      'poster_url': posterUrl,
       'cast': cast,
       'director': director,
     };

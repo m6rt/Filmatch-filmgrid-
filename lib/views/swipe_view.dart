@@ -502,7 +502,7 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
           Semantics(
             label: SwipeViewConstants.profileLabel,
             child: IconButton(
-              onPressed: () => _showSampleDialog('Profile'),
+              onPressed: () => Navigator.pushNamed(context, '/profile'),
               icon: Icon(Icons.person),
               tooltip: SwipeViewConstants.profileLabel,
             ),

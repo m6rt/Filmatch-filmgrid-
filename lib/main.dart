@@ -1,6 +1,8 @@
 import 'package:filmgrid/firebase_options.dart';
+import 'package:filmgrid/services/auth_page.dart';
 import 'package:filmgrid/views/login_view.dart';
 import 'package:filmgrid/views/swipe_view.dart';
+import 'package:filmgrid/views/profile_view.dart';
 import 'package:filmgrid/theme/app_theme.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
@@ -64,7 +66,7 @@ Future<void> main() async {
     print('🚀 Starting app...');
     runApp(
       DevicePreview(
-        enabled: false,// Debug ve profile modda çalışır
+        enabled: false, // Debug ve profile modda çalışır
         builder: (context) => MyApp(),
       ),
     );
@@ -90,6 +92,11 @@ class MyApp extends StatelessWidget {
       title: 'FilmGrid',
       theme: AppTheme.theme,
       home: const SwipeView(),
+      routes: {
+        '/login': (context) => const Loginview(),
+        '/swipe': (context) => const SwipeView(),
+        '/profile': (context) => const ProfileView(),
+      },
       // Device Preview için gerekli
       useInheritedMediaQuery: true,
       locale: DevicePreview.locale(context),

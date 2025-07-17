@@ -48,6 +48,7 @@ dependencies:
   firebase_dynamic_links: ^6.1.5
   connectivity_plus: ^6.1.4
   youtube_player_flutter: ^9.1.1
+  cached_network_image: ^3.4.1
   http: ^1.4.0
   shared_preferences: ^2.5.3
   flutter_dotenv: ^5.2.1
