@@ -1,4 +1,6 @@
 import 'dart:io';
+import 'dart:convert';
+import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -139,23 +141,32 @@ class ProfileService {
     }
   }
 
-  // Favori filmleri getir
+  // Favori filmleri getir (Local JSON'dan)
   Future<List<Movie>> getFavoriteMovies(List<String> movieIds) async {
     if (movieIds.isEmpty) return [];
 
     try {
+      // Local JSON'dan tüm filmleri yükle
+      final String jsonString = await rootBundle.loadString(
+        'assets/movies_database.json',
+      );
+      final List<dynamic> jsonList = json.decode(jsonString);
+      final List<Movie> allMovies =
+          jsonList.map((json) => Movie.fromJson(json)).toList();
+
       final List<Movie> favoriteMovies = [];
 
-      // Batch olarak film bilgilerini al (Firestore'da movies collection'ı varsa)
-      for (String movieId in movieIds.take(3)) {
-        // Sadece ilk 3'ünü al
+      // Movie ID'leri int'e çevir ve eşleştir
+      for (String movieIdStr in movieIds) {
         try {
-          final doc = await _firestore.collection('movies').doc(movieId).get();
-          if (doc.exists) {
-            favoriteMovies.add(Movie.fromJson(doc.data()!));
-          }
+          final int movieId = int.parse(movieIdStr);
+          final movie = allMovies.firstWhere(
+            (m) => m.id == movieId,
+            orElse: () => throw Exception('Movie not found'),
+          );
+          favoriteMovies.add(movie);
         } catch (e) {
-          print('Error getting movie $movieId: $e');
+          print('Error finding movie $movieIdStr: $e');
         }
       }
 
@@ -163,6 +174,116 @@ class ProfileService {
     } catch (e) {
       print('Error getting favorite movies: $e');
       return [];
+    }
+  }
+
+  // Watchlist'e film ekle
+  Future<bool> addToWatchlist(String movieId) async {
+    final user = currentUser;
+    if (user == null) return false;
+
+    try {
+      await _firestore.collection('users').doc(user.uid).update({
+        'watchlistMovieIds': FieldValue.arrayUnion([movieId]),
+        'lastUpdated': DateTime.now().millisecondsSinceEpoch,
+      });
+      return true;
+    } catch (e) {
+      print('Error adding to watchlist: $e');
+      return false;
+    }
+  }
+
+  // Watchlist'ten film çıkar
+  Future<bool> removeFromWatchlist(String movieId) async {
+    final user = currentUser;
+    if (user == null) return false;
+
+    try {
+      await _firestore.collection('users').doc(user.uid).update({
+        'watchlistMovieIds': FieldValue.arrayRemove([movieId]),
+        'lastUpdated': DateTime.now().millisecondsSinceEpoch,
+      });
+      return true;
+    } catch (e) {
+      print('Error removing from watchlist: $e');
+      return false;
+    }
+  }
+
+  // Watchlist filmlerini getir
+  Future<List<Movie>> getWatchlistMovies(List<String> movieIds) async {
+    if (movieIds.isEmpty) return [];
+
+    try {
+      // Local JSON'dan tüm filmleri yükle
+      final String jsonString = await rootBundle.loadString(
+        'assets/movies_database.json',
+      );
+      final List<dynamic> jsonList = json.decode(jsonString);
+      final List<Movie> allMovies =
+          jsonList.map((json) => Movie.fromJson(json)).toList();
+
+      final List<Movie> watchlistMovies = [];
+
+      // Movie ID'leri int'e çevir ve eşleştir
+      for (String movieIdStr in movieIds) {
+        try {
+          final int movieId = int.parse(movieIdStr);
+          final movie = allMovies.firstWhere(
+            (m) => m.id == movieId,
+            orElse: () => throw Exception('Movie not found'),
+          );
+          watchlistMovies.add(movie);
+        } catch (e) {
+          print('Error finding movie $movieIdStr: $e');
+        }
+      }
+
+      return watchlistMovies;
+    } catch (e) {
+      print('Error getting watchlist movies: $e');
+      return [];
+    }
+  }
+
+  // Filmin favorilerde olup olmadığını kontrol et
+  Future<bool> isMovieInFavorites(String movieId) async {
+    final user = currentUser;
+    if (user == null) return false;
+
+    try {
+      final doc = await _firestore.collection('users').doc(user.uid).get();
+      if (doc.exists) {
+        final favoriteIds = List<String>.from(
+          doc.data()?['favoriteMovieIds'] ?? [],
+        );
+        return favoriteIds.contains(movieId);
+      }
+      return false;
+    } catch (e) {
+      print('Error checking favorite status: $e');
+      return false;
+    }
+  }
+
+  // Filmin watchlist'te olup olmadığını kontrol et
+  Future<bool> isMovieInWatchlist(String movieId) async {
+    final user = currentUser;
+    if (user == null) return false;
+
+    try {
+      final doc = await _firestore.collection('users').doc(user.uid).get();
+      if (doc.exists) {
+        final watchlistIds = List<String>.from(
+          doc.data()?['watchlistMovieIds'] ?? [],
+        );
+        return watchlistIds.contains(movieId);
+      }
+      return false;
+    } catch (e) {
+      print('Error checking watchlist status: $e');
+      return false;
     }
   }
 

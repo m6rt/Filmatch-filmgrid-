@@ -549,6 +549,14 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
         title: Text("Swipe"),
         actions: [
           Semantics(
+            label: 'Browse Films',
+            child: IconButton(
+              onPressed: () => Navigator.pushNamed(context, '/browse'),
+              icon: Icon(Icons.explore),
+              tooltip: 'Browse Films',
+            ),
+          ),
+          Semantics(
             label: SwipeViewConstants.searchLabel,
             child: IconButton(
               onPressed: () => _showSampleDialog('Search'),
@@ -559,7 +567,11 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
           Semantics(
             label: SwipeViewConstants.profileLabel,
             child: IconButton(
-              onPressed: () => Navigator.pushNamed(context, '/profile'),
+              onPressed: () async {
+                await Navigator.pushNamed(context, '/profile');
+                // ProfileView'dan geri döndükten sonra hiçbir işlem yapmaya gerek yok
+                // ProfileView kendi lifecycle'ında yenileniyor
+              },
               icon: Icon(Icons.person),
               tooltip: SwipeViewConstants.profileLabel,
             ),

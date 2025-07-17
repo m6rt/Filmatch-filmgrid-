@@ -4,6 +4,7 @@ class UserProfile {
   final String email;
   final String? profileImageUrl;
   final List<String> favoriteMovieIds;
+  final List<String> watchlistMovieIds;
   final DateTime createdAt;
   final DateTime lastUpdated;
 
@@ -13,6 +14,7 @@ class UserProfile {
     required this.email,
     this.profileImageUrl,
     this.favoriteMovieIds = const [],
+    this.watchlistMovieIds = const [],
     required this.createdAt,
     required this.lastUpdated,
   });
@@ -24,6 +26,7 @@ class UserProfile {
       email: data['email'] ?? '',
       profileImageUrl: data['profileImageUrl'],
       favoriteMovieIds: List<String>.from(data['favoriteMovieIds'] ?? []),
+      watchlistMovieIds: List<String>.from(data['watchlistMovieIds'] ?? []),
       createdAt: DateTime.fromMillisecondsSinceEpoch(
         data['createdAt'] ?? DateTime.now().millisecondsSinceEpoch,
       ),
@@ -39,6 +42,7 @@ class UserProfile {
       'email': email,
       'profileImageUrl': profileImageUrl,
       'favoriteMovieIds': favoriteMovieIds,
+      'watchlistMovieIds': watchlistMovieIds,
       'createdAt': createdAt.millisecondsSinceEpoch,
       'lastUpdated': lastUpdated.millisecondsSinceEpoch,
     };
@@ -49,6 +53,7 @@ class UserProfile {
     String? email,
     String? profileImageUrl,
     List<String>? favoriteMovieIds,
+    List<String>? watchlistMovieIds,
     DateTime? lastUpdated,
   }) {
     return UserProfile(
@@ -57,6 +62,7 @@ class UserProfile {
       email: email ?? this.email,
       profileImageUrl: profileImageUrl ?? this.profileImageUrl,
       favoriteMovieIds: favoriteMovieIds ?? this.favoriteMovieIds,
+      watchlistMovieIds: watchlistMovieIds ?? this.watchlistMovieIds,
       createdAt: createdAt,
       lastUpdated: lastUpdated ?? DateTime.now(),
     );

@@ -57,6 +57,11 @@ class BatchOptimizedMovieService {
   int get totalActionsRecorded => _pendingActions.length;
   int get totalMovies => _allMovies.length;
 
+  // Tüm filmleri döndür (Browse view için)
+  List<Movie> getAllMovies() {
+    return List.from(_allMovies);
+  }
+
   // 1. Servisi başlat
   Future<void> initializeService() async {
     try {

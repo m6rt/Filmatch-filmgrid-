@@ -11,27 +11,55 @@ class ProfileView extends StatefulWidget {
   State<ProfileView> createState() => _ProfileViewState();
 }
 
-class _ProfileViewState extends State<ProfileView> {
+class _ProfileViewState extends State<ProfileView>
+    with WidgetsBindingObserver, RouteAware {
   final ProfileService _profileService = ProfileService();
 
   UserProfile? _userProfile;
   List<Movie> _favoriteMovies = [];
+  List<Movie> _watchlistMovies = [];
   bool _isLoading = true;
   bool _isUpdating = false;
+  DateTime? _lastRefresh;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadProfile();
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Sadece 2 saniyeden fazla süre geçtiyse yenile (çok sık yenilemeyi önler)
+    final now = DateTime.now();
+    if (_lastRefresh == null || now.difference(_lastRefresh!).inSeconds > 2) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !_isLoading) {
+          _loadProfile();
+        }
+      });
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) {
+      // Uygulama ön plana geçtiğinde profili yenile
+      _loadProfile();
+    }
   }
 
   Future<void> _loadProfile() async {
     setState(() => _isLoading = true);
+    _lastRefresh = DateTime.now();
 
     try {
       final profile = await _profileService.getUserProfile();
@@ -40,14 +68,28 @@ class _ProfileViewState extends State<ProfileView> {
           _userProfile = profile;
         });
 
+        // Load favorite movies
         if (profile.favoriteMovieIds.isNotEmpty) {
           final movies = await _profileService.getFavoriteMovies(
             profile.favoriteMovieIds,
           );
           setState(() => _favoriteMovies = movies);
+        } else {
+          setState(() => _favoriteMovies = []);
+        }
+
+        // Load watchlist movies
+        if (profile.watchlistMovieIds.isNotEmpty) {
+          final watchlistMovies = await _profileService.getWatchlistMovies(
+            profile.watchlistMovieIds,
+          );
+          setState(() => _watchlistMovies = watchlistMovies);
+        } else {
+          setState(() => _watchlistMovies = []);
         }
       }
     } catch (e) {
+      print('Error loading profile: $e');
       _showErrorSnackBar('Profil yüklenirken hata oluştu');
     } finally {
       setState(() => _isLoading = false);
@@ -148,7 +190,13 @@ class _ProfileViewState extends State<ProfileView> {
             fontWeight: FontWeight.bold,
           ),
         ),
-        actions: [],
+        actions: [
+          IconButton(
+            onPressed: _loadProfile,
+            icon: Icon(Icons.refresh, color: AppTheme.darkGrey),
+            tooltip: 'Profili Yenile',
+          ),
+        ],
       ),
       body: Container(
         decoration: BoxDecoration(gradient: AppTheme.backgroundGradient),
@@ -174,6 +222,11 @@ class _ProfileViewState extends State<ProfileView> {
 
                   // Favori Filmler
                   _buildFavoriteMovies(isSmallScreen),
+
+                  SizedBox(height: isSmallScreen ? 20 : 24),
+
+                  // İzleme Listesi
+                  _buildWatchlistMovies(isSmallScreen),
                 ],
               ),
             );
@@ -328,7 +381,8 @@ class _ProfileViewState extends State<ProfileView> {
                   ? _buildEmptyFavorites(isSmallScreen)
                   : ListView.builder(
                     scrollDirection: Axis.horizontal,
-                    itemCount: 3,
+                    itemCount:
+                        _favoriteMovies.length + 1, // Add 1 for the "add" card
                     itemBuilder: (context, index) {
                       if (index < _favoriteMovies.length) {
                         return _buildFavoriteMovieCard(
@@ -368,7 +422,7 @@ class _ProfileViewState extends State<ProfileView> {
           SizedBox(height: spacing),
           ElevatedButton(
             onPressed: () {
-              Navigator.pushNamed(context, '/swipe');
+              Navigator.pushNamed(context, '/browse');
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.primaryRed,
@@ -456,7 +510,7 @@ class _ProfileViewState extends State<ProfileView> {
       margin: EdgeInsets.only(right: margin),
       child: GestureDetector(
         onTap: () {
-          Navigator.pushNamed(context, '/swipe');
+          Navigator.pushNamed(context, '/browse');
         },
         child: Container(
           decoration: BoxDecoration(
@@ -471,6 +525,193 @@ class _ProfileViewState extends State<ProfileView> {
               SizedBox(height: spacing),
               Text(
                 'Film Ekle',
+                style: TextStyle(
+                  color: AppTheme.primaryRed,
+                  fontSize: fontSize,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWatchlistMovies(bool isSmallScreen) {
+    final titleFontSize = isSmallScreen ? 18.0 : 20.0;
+    final cardHeight = isSmallScreen ? 130.0 : 150.0;
+    final spacing = isSmallScreen ? 12.0 : 16.0;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'İzleme Listesi',
+          style: TextStyle(
+            color: AppTheme.darkGrey,
+            fontSize: titleFontSize,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+
+        SizedBox(height: spacing),
+
+        SizedBox(
+          height: cardHeight,
+          child:
+              _watchlistMovies.isEmpty
+                  ? _buildEmptyWatchlist(isSmallScreen)
+                  : ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount:
+                        _watchlistMovies.length + 1, // Add 1 for the "add" card
+                    itemBuilder: (context, index) {
+                      if (index < _watchlistMovies.length) {
+                        return _buildWatchlistMovieCard(
+                          _watchlistMovies[index],
+                          isSmallScreen,
+                        );
+                      } else {
+                        return _buildAddWatchlistCard(isSmallScreen);
+                      }
+                    },
+                  ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEmptyWatchlist(bool isSmallScreen) {
+    final iconSize = isSmallScreen ? 40.0 : 48.0;
+    final fontSize = isSmallScreen ? 14.0 : 16.0;
+    final spacing = isSmallScreen ? 6.0 : 8.0;
+
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.playlist_add,
+            size: iconSize,
+            color: AppTheme.secondaryGrey,
+          ),
+          SizedBox(height: spacing),
+          Text(
+            'İzleme listesi boş',
+            style: TextStyle(color: AppTheme.secondaryGrey, fontSize: fontSize),
+            textAlign: TextAlign.center,
+          ),
+          SizedBox(height: spacing),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pushNamed(context, '/browse');
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryRed,
+              foregroundColor: Colors.white,
+            ),
+            child: Text(
+              'Film Keşfet',
+              style: TextStyle(fontSize: isSmallScreen ? 12.0 : 14.0),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWatchlistMovieCard(Movie movie, bool isSmallScreen) {
+    final cardWidth = isSmallScreen ? 80.0 : 100.0;
+    final margin = isSmallScreen ? 8.0 : 12.0;
+    final fontSize = isSmallScreen ? 10.0 : 12.0;
+    final spacing = isSmallScreen ? 6.0 : 8.0;
+
+    return Container(
+      width: cardWidth,
+      margin: EdgeInsets.only(right: margin),
+      child: Column(
+        children: [
+          Expanded(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child:
+                  movie.posterUrl.isNotEmpty
+                      ? Image.network(
+                        movie.posterUrl,
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return Container(
+                            color: AppTheme.secondaryGrey,
+                            child: const Center(
+                              child: CircularProgressIndicator(
+                                color: AppTheme.primaryRed,
+                              ),
+                            ),
+                          );
+                        },
+                        errorBuilder:
+                            (context, error, stackTrace) => Container(
+                              color: AppTheme.secondaryGrey,
+                              child: Icon(Icons.movie, color: Colors.white),
+                            ),
+                      )
+                      : Container(
+                        color: AppTheme.secondaryGrey,
+                        child: Icon(Icons.movie, color: Colors.white),
+                      ),
+            ),
+          ),
+          SizedBox(height: spacing),
+          Text(
+            movie.title,
+            style: TextStyle(
+              color: AppTheme.darkGrey,
+              fontSize: fontSize,
+              fontWeight: FontWeight.w500,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAddWatchlistCard(bool isSmallScreen) {
+    final cardWidth = isSmallScreen ? 80.0 : 100.0;
+    final margin = isSmallScreen ? 8.0 : 12.0;
+    final iconSize = isSmallScreen ? 24.0 : 32.0;
+    final fontSize = isSmallScreen ? 10.0 : 12.0;
+    final spacing = isSmallScreen ? 6.0 : 8.0;
+
+    return Container(
+      width: cardWidth,
+      margin: EdgeInsets.only(right: margin),
+      child: GestureDetector(
+        onTap: () {
+          Navigator.pushNamed(context, '/browse');
+        },
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: AppTheme.primaryRed, width: 2),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.playlist_add,
+                size: iconSize,
+                color: AppTheme.primaryRed,
+              ),
+              SizedBox(height: spacing),
+              Text(
+                'Liste Ekle',
                 style: TextStyle(
                   color: AppTheme.primaryRed,
                   fontSize: fontSize,

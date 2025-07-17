@@ -3,6 +3,7 @@ import 'package:filmgrid/services/auth_page.dart';
 import 'package:filmgrid/views/login_view.dart';
 import 'package:filmgrid/views/swipe_view.dart';
 import 'package:filmgrid/views/profile_view.dart';
+import 'package:filmgrid/views/browse_view.dart';
 import 'package:filmgrid/theme/app_theme.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
@@ -96,6 +97,7 @@ class MyApp extends StatelessWidget {
         '/login': (context) => const Loginview(),
         '/swipe': (context) => const SwipeView(),
         '/profile': (context) => const ProfileView(),
+        '/browse': (context) => const BrowseView(),
       },
       // Device Preview için gerekli
       useInheritedMediaQuery: true,
