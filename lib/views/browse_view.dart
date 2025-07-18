@@ -195,7 +195,7 @@ class _BrowseViewState extends State<BrowseView> with TickerProviderStateMixin {
     return Scaffold(
       backgroundColor: AppTheme.lightGrey,
       appBar: AppBar(
-        title: const Text('Film Keşfet'),
+        title: const Text('Film Keşfet',style: TextStyle(color: Colors.black),),
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
