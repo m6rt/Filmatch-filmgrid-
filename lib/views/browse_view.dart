@@ -708,13 +708,13 @@ class _MovieDetailsDialogState extends State<_MovieDetailsDialog> {
       alignment: Alignment.center, // Dialogu merkeze konumlandır
       insetPadding: EdgeInsets.symmetric(
         horizontal: isTablet ? 96 : 16,
-        vertical: 50, // Vertical padding'i artır
+        vertical: 40, // 50'den 40'a düşür
       ),
       backgroundColor: Colors.transparent,
       child: ConstrainedBox(
         constraints: BoxConstraints(
           minHeight: screenHeight * 0.3, // Minimum yükseklik
-          maxHeight: screenHeight * 0.8, // %80'e düşür
+          maxHeight: screenHeight * 0.85, // %80'den %85'e çıkar
           maxWidth: isTablet ? 600 : double.infinity,
         ),
         child: Container(
@@ -773,7 +773,10 @@ class _MovieDetailsDialogState extends State<_MovieDetailsDialog> {
                             // Trailer Video
                             if (widget.movie.trailerUrl != null)
                               Container(
-                                height: isTablet ? 180 : 140,
+                                height:
+                                    isTablet
+                                        ? 220
+                                        : 180, // 180'den 220'ye, 140'tan 180'e artırdım
                                 margin: const EdgeInsets.only(bottom: 12),
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(12),
