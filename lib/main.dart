@@ -1,5 +1,6 @@
 import 'package:filmgrid/firebase_options.dart';
 import 'package:filmgrid/services/auth_page.dart';
+import 'package:filmgrid/views/comments_view.dart';
 import 'package:filmgrid/views/login_view.dart';
 import 'package:filmgrid/views/swipe_view.dart';
 import 'package:filmgrid/views/profile_view.dart';
@@ -10,6 +11,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:device_preview/device_preview.dart';
+import 'models/movie.dart'; // Bu import'u ekleyin
 
 class MySeparator extends StatelessWidget {
   const MySeparator({Key? key, this.height = 1, this.color = Colors.black})
@@ -89,20 +91,36 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'FilmGrid',
-      theme: AppTheme.theme,
+      title: 'Film Grid',
+      theme: ThemeData(primarySwatch: Colors.red, useMaterial3: false),
       home: const SwipeView(),
       routes: {
         '/login': (context) => const Loginview(),
         '/swipe': (context) => const SwipeView(),
         '/profile': (context) => const ProfileView(),
         '/browse': (context) => const BrowseView(),
+        '/comments': (context) {
+          final args = ModalRoute.of(context)!.settings.arguments;
+
+          // Arguments kontrolü
+          if (args is Map<String, dynamic>) {
+            return CommentsView(
+              movieId: args['movieId'] as int,
+              movie: args['movie'] as Movie?,
+            );
+          } else if (args is int) {
+            // Sadece movieId gönderilmişse
+            return CommentsView(movieId: args, movie: null);
+          } else {
+            // Hatalı argument durumu
+            return Scaffold(
+              appBar: AppBar(title: const Text('Hata')),
+              body: const Center(child: Text('Geçersiz sayfa parametresi')),
+            );
+          }
+        },
       },
-      // Device Preview için gerekli
-      useInheritedMediaQuery: true,
-      locale: DevicePreview.locale(context),
-      builder: DevicePreview.appBuilder,
+      debugShowCheckedModeBanner: false,
     );
   }
 }
