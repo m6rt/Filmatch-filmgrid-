@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/movie.dart';
 import '../theme/app_theme.dart';
-import '../services/comments_services.dart';
+import '../services/comments_service.dart';
 
 class CommentsView extends StatefulWidget {
   final int movieId;

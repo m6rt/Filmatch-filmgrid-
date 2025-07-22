@@ -3,7 +3,7 @@ import 'dart:async';
 import '../models/movie.dart';
 import '../services/batch_optimized_movie_service.dart';
 import '../services/profile_service.dart';
-import '../services/comments_services.dart'; // Bu import'u ekleyin
+import '../services/comments_service.dart'; // Bu import'u ekleyin
 import '../theme/app_theme.dart';
 import '../widgets/optimized_video_player.dart';
 
@@ -821,8 +821,7 @@ class _MovieDetailsDialogState extends State<_MovieDetailsDialog> {
                               overflow: TextOverflow.ellipsis,
                             ),
 
-                            const SizedBox(height: 16),
-
+                            const SizedBox(height: 24), // 16'dan 24'e çıkardım
                             // Yorumlar Bölümü
                             _buildCommentsSection(),
 
@@ -1128,9 +1127,9 @@ class _MovieDetailsDialogState extends State<_MovieDetailsDialog> {
 
         const SizedBox(height: 8),
 
-        // Yorumlar listesi (yatay kaydırmalı) - Yüksekliği azalt
+        // Yorumlar listesi - Yüksekliği artıralım
         SizedBox(
-          height: 100, // 120'den 100'e düşür
+          height: 130, // 100'den 130'a çıkar
           child:
               _isLoadingComments
                   ? const Center(
@@ -1141,7 +1140,7 @@ class _MovieDetailsDialogState extends State<_MovieDetailsDialog> {
                   : _comments.isEmpty
                   ? Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(16), // Padding'i azalt
+                    padding: const EdgeInsets.all(20), // Padding'i artır
                     decoration: BoxDecoration(
                       color: AppTheme.lightGrey,
                       borderRadius: BorderRadius.circular(12),
@@ -1156,14 +1155,14 @@ class _MovieDetailsDialogState extends State<_MovieDetailsDialog> {
                         Icon(
                           Icons.comment_outlined,
                           color: AppTheme.secondaryGrey,
-                          size: 20, // İkon boyutunu azalt
+                          size: 24, // İkon boyutunu artır
                         ),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 8),
                         Text(
                           'Henüz yorum yapılmamış\nİlk yorumu siz yapın!',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            fontSize: 11, // Font boyutunu azalt
+                            fontSize: 12, // Font boyutunu artır
                             color: AppTheme.secondaryGrey,
                           ),
                         ),
@@ -1197,7 +1196,7 @@ class _MovieDetailsDialogState extends State<_MovieDetailsDialog> {
         });
       },
       child: Container(
-        width: 280,
+        width: 300, // Genişliği 280'den 300'e artır
         margin: const EdgeInsets.only(right: 12),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
@@ -1211,18 +1210,20 @@ class _MovieDetailsDialogState extends State<_MovieDetailsDialog> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Kullanıcı bilgisi ve yıldızlar
+            // Kullanıcı bilgisi ve yıldızlar - Daha kompakt
             Row(
               children: [
                 CircleAvatar(
-                  radius: 16,
+                  radius: 14, // Biraz küçült
                   backgroundColor: AppTheme.primaryRed,
                   child: Text(
-                    comment['username'].toString().substring(0, 1),
+                    (comment['username']?.toString() ?? 'U')
+                        .substring(0, 1)
+                        .toUpperCase(),
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
-                      fontSize: 12,
+                      fontSize: 11, // Font boyutunu küçült
                     ),
                   ),
                 ),
@@ -1232,31 +1233,37 @@ class _MovieDetailsDialogState extends State<_MovieDetailsDialog> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        comment['username'],
+                        comment['username']?.toString() ?? 'Kullanıcı',
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 11, // Font boyutunu küçült
                           fontWeight: FontWeight.w600,
                           color: AppTheme.darkGrey,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                       Row(
                         children: [
                           ...List.generate(
                             5,
                             (starIndex) => Icon(
-                              starIndex < (comment['rating'] / 2)
+                              starIndex < ((comment['rating'] ?? 0) / 2)
                                   ? Icons.star
                                   : Icons.star_border,
-                              size: 12,
+                              size: 10, // Yıldız boyutunu küçült
                               color: Colors.amber,
                             ),
                           ),
                           const SizedBox(width: 4),
-                          Text(
-                            comment['date'],
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: AppTheme.secondaryGrey,
+                          Expanded(
+                            child: Text(
+                              comment['date']?.toString() ?? '',
+                              style: TextStyle(
+                                fontSize: 9, // Font boyutunu küçült
+                                color: AppTheme.secondaryGrey,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],
@@ -1267,15 +1274,14 @@ class _MovieDetailsDialogState extends State<_MovieDetailsDialog> {
               ],
             ),
 
-            const SizedBox(height: 8),
-
+            const SizedBox(height: 6), // Spacing'i azalt
             // Yorum metni (spoiler kontrolü ile)
             Expanded(
               child:
-                  comment['isSpoiler'] == true
+                  (comment['isSpoiler'] == true)
                       ? Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.all(8),
+                        padding: const EdgeInsets.all(6), // Padding'i azalt
                         decoration: BoxDecoration(
                           color: Colors.black12,
                           borderRadius: BorderRadius.circular(6),
@@ -1289,29 +1295,30 @@ class _MovieDetailsDialogState extends State<_MovieDetailsDialog> {
                             Icon(
                               Icons.visibility_off,
                               color: AppTheme.primaryRed,
-                              size: 16,
+                              size: 14, // İkon boyutunu küçült
                             ),
-                            const SizedBox(height: 4),
+                            const SizedBox(height: 2),
                             Text(
                               'Spoiler içerik\nTıklayın',
                               textAlign: TextAlign.center,
                               style: TextStyle(
-                                fontSize: 10,
+                                fontSize: 9, // Font boyutunu küçült
                                 color: AppTheme.darkGrey,
                                 fontWeight: FontWeight.w500,
+                                height: 1.2,
                               ),
                             ),
                           ],
                         ),
                       )
                       : Text(
-                        comment['comment'],
+                        comment['comment']?.toString() ?? '',
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 11, // Font boyutunu küçült
                           color: AppTheme.darkGrey,
                           height: 1.3,
                         ),
-                        maxLines: 3,
+                        maxLines: 4, // Maksimum satır sayısını artır
                         overflow: TextOverflow.ellipsis,
                       ),
             ),

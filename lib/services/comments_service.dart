@@ -12,7 +12,9 @@ class CommentsService {
           'username': comment['username'],
           'rating': comment['rating'],
           'comment': comment['comment'],
-          'isSpoiler': comment['isSpoiler'] == 1,
+          'isSpoiler':
+              comment['isSpoiler'] ==
+              1, // SQLite'tan gelen integer'ı bool'a çevir
           'date': _formatDate(comment['createdAt']),
           'createdAt': comment['createdAt'],
         };
@@ -46,22 +48,27 @@ class CommentsService {
   }
 
   String _formatDate(String isoDate) {
-    final date = DateTime.parse(isoDate);
-    final now = DateTime.now();
-    final difference = now.difference(date);
+    try {
+      final date = DateTime.parse(isoDate);
+      final now = DateTime.now();
+      final difference = now.difference(date);
 
-    if (difference.inMinutes < 1) {
-      return 'Şimdi';
-    } else if (difference.inHours < 1) {
-      return '${difference.inMinutes} dakika önce';
-    } else if (difference.inDays < 1) {
-      return '${difference.inHours} saat önce';
-    } else if (difference.inDays < 7) {
-      return '${difference.inDays} gün önce';
-    } else if (difference.inDays < 30) {
-      return '${(difference.inDays / 7).floor()} hafta önce';
-    } else {
-      return '${(difference.inDays / 30).floor()} ay önce';
+      if (difference.inMinutes < 1) {
+        return 'Şimdi';
+      } else if (difference.inHours < 1) {
+        return '${difference.inMinutes} dakika önce';
+      } else if (difference.inDays < 1) {
+        return '${difference.inHours} saat önce';
+      } else if (difference.inDays < 7) {
+        return '${difference.inDays} gün önce';
+      } else if (difference.inDays < 30) {
+        return '${(difference.inDays / 7).floor()} hafta önce';
+      } else {
+        return '${(difference.inDays / 30).floor()} ay önce';
+      }
+    } catch (e) {
+      print('Error formatting date: $e');
+      return 'Bilinmeyen tarih';
     }
   }
 }
