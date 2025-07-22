@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/user_profile.dart';
 import '../models/movie.dart';
 import '../services/profile_service.dart';
+import '../services/comments_service.dart'; // Bu import'u ekleyin
 import '../theme/app_theme.dart';
 
 class ProfileView extends StatefulWidget {
@@ -14,10 +15,13 @@ class ProfileView extends StatefulWidget {
 class _ProfileViewState extends State<ProfileView>
     with WidgetsBindingObserver, RouteAware {
   final ProfileService _profileService = ProfileService();
+  final CommentsService _commentsService =
+      CommentsService(); // CommentsService ekleyin
 
   UserProfile? _userProfile;
   List<Movie> _favoriteMovies = [];
   List<Movie> _watchlistMovies = [];
+  List<Map<String, dynamic>> _userComments = []; // Kullanıcı yorumları
   bool _isLoading = true;
   bool _isUpdating = false;
   DateTime? _lastRefresh;
@@ -87,12 +91,75 @@ class _ProfileViewState extends State<ProfileView>
         } else {
           setState(() => _watchlistMovies = []);
         }
+
+        // Load user comments - Kullanıcının tüm yorumlarını yükle
+        await _loadUserComments();
       }
     } catch (e) {
       print('Error loading profile: $e');
       _showErrorSnackBar('Profil yüklenirken hata oluştu');
     } finally {
       setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _loadUserComments() async {
+    try {
+      // Tüm favoriler ve watchlist'teki filmler için yorumları al
+      final allMovieIds =
+          [
+            ..._favoriteMovies.map((m) => m.id),
+            ..._watchlistMovies.map((m) => m.id),
+          ].toSet().toList(); // Tekrarları kaldır
+
+      List<Map<String, dynamic>> allComments = [];
+
+      for (int movieId in allMovieIds) {
+        final comments = await _commentsService.getComments(movieId);
+        // Sadece bu kullanıcının yorumlarını filtrele (şimdilik "Kullanıcı" ile)
+        final userComments =
+            comments
+                .where(
+                  (comment) =>
+                      comment['username'] == 'Kullanıcı' ||
+                      comment['username'] == 'Sen',
+                )
+                .toList();
+
+        // Her yoruma film bilgisini ekle
+        for (var comment in userComments) {
+          final movie = [..._favoriteMovies, ..._watchlistMovies].firstWhere(
+            (m) => m.id == movieId,
+            orElse:
+                () => Movie(
+                  id: movieId,
+                  title: 'Bilinmeyen Film',
+                  posterUrl: '',
+                  year: 0,
+                  genre: [],
+                  director: '',
+                  cast: [],
+                  description: '',
+                ),
+          );
+
+          comment['movie'] = movie;
+          allComments.add(comment);
+        }
+      }
+
+      // Yorumları tarihe göre sırala (en yeni önce)
+      allComments.sort(
+        (a, b) => DateTime.parse(
+          b['createdAt'],
+        ).compareTo(DateTime.parse(a['createdAt'])),
+      );
+
+      setState(() {
+        _userComments = allComments;
+      });
+    } catch (e) {
+      print('Error loading user comments: $e');
     }
   }
 
@@ -227,6 +294,11 @@ class _ProfileViewState extends State<ProfileView>
 
                   // İzleme Listesi
                   _buildWatchlistMovies(isSmallScreen),
+
+                  SizedBox(height: isSmallScreen ? 20 : 24),
+
+                  // Yorumlarım Bölümü - YENİ!
+                  _buildUserComments(isSmallScreen),
                 ],
               ),
             );
@@ -234,6 +306,93 @@ class _ProfileViewState extends State<ProfileView>
         ),
       ),
     );
+  }
+
+  // Yeni yorum bölümü widget'ı
+  Widget _buildUserComments(bool isSmallScreen) {
+    final titleFontSize = isSmallScreen ? 18.0 : 20.0;
+    final cardHeight =
+        isSmallScreen ? 200.0 : 220.0; // 160'tan 200'e, 180'den 220'ye artır
+    final spacing = isSmallScreen ? 12.0 : 16.0;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Yorumlarım (${_userComments.length})',
+          style: TextStyle(
+            color: AppTheme.darkGrey,
+            fontSize: titleFontSize,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+
+        SizedBox(height: spacing),
+
+        SizedBox(
+          height: cardHeight,
+          child:
+              _userComments.isEmpty
+                  ? _buildEmptyComments(isSmallScreen)
+                  : ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: _userComments.length,
+                    itemBuilder: (context, index) {
+                      return _SpoilerCommentCard(
+                        comment: _userComments[index],
+                        isSmallScreen: isSmallScreen,
+                      );
+                    },
+                  ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEmptyComments(bool isSmallScreen) {
+    final iconSize = isSmallScreen ? 40.0 : 48.0;
+    final fontSize = isSmallScreen ? 14.0 : 16.0;
+    final spacing = isSmallScreen ? 6.0 : 8.0;
+
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.comment_outlined,
+            size: iconSize,
+            color: AppTheme.secondaryGrey,
+          ),
+          SizedBox(height: spacing),
+          Text(
+            'Henüz yorum yapmadınız',
+            style: TextStyle(color: AppTheme.secondaryGrey, fontSize: fontSize),
+            textAlign: TextAlign.center,
+          ),
+          SizedBox(height: spacing),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pushNamed(context, '/browse');
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryRed,
+              foregroundColor: Colors.white,
+            ),
+            child: Text(
+              'Film Keşfet',
+              style: TextStyle(fontSize: isSmallScreen ? 12.0 : 14.0),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUserCommentCard(
+    Map<String, dynamic> comment,
+    bool isSmallScreen,
+  ) {
+    return _SpoilerCommentCard(comment: comment, isSmallScreen: isSmallScreen);
   }
 
   Widget _buildProfileImage(bool isSmallScreen) {
@@ -742,5 +901,294 @@ class _ProfileViewState extends State<ProfileView>
     ];
 
     return '${date.day} ${months[date.month - 1]} ${date.year}';
+  }
+}
+
+class _SpoilerCommentCard extends StatefulWidget {
+  final Map<String, dynamic> comment;
+  final bool isSmallScreen;
+
+  const _SpoilerCommentCard({
+    required this.comment,
+    required this.isSmallScreen,
+  });
+
+  @override
+  State<_SpoilerCommentCard> createState() => _SpoilerCommentCardState();
+}
+
+class _SpoilerCommentCardState extends State<_SpoilerCommentCard> {
+  bool _isRevealed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final cardWidth = widget.isSmallScreen ? 250.0 : 280.0;
+    final margin = widget.isSmallScreen ? 8.0 : 12.0;
+    final fontSize = widget.isSmallScreen ? 12.0 : 14.0;
+    final spacing = widget.isSmallScreen ? 6.0 : 8.0;
+    final movie = widget.comment['movie'] as Movie;
+    final isSpoiler = widget.comment['isSpoiler'] == true;
+
+    return Container(
+      width: cardWidth,
+      margin: EdgeInsets.only(right: margin),
+      child: Card(
+        elevation: 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side:
+              isSpoiler
+                  ? BorderSide(color: AppTheme.primaryRed, width: 2)
+                  : BorderSide.none,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Film bilgisi - Compact header
+              _buildMovieHeader(movie, fontSize, isSpoiler),
+
+              SizedBox(height: spacing),
+
+              // Yorum metni (spoiler kontrolü ile) - Flexible kullan
+              Expanded(child: _buildCommentContent(isSpoiler, fontSize)),
+
+              // Tarih - Fixed bottom
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  widget.comment['date'],
+                  style: TextStyle(
+                    fontSize: fontSize - 2,
+                    color: AppTheme.secondaryGrey,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMovieHeader(Movie movie, double fontSize, bool isSpoiler) {
+    return Row(
+      children: [
+        // Film posteri (küçük)
+        Container(
+          width: 35, // 40'tan 35'e küçült
+          height: 50, // 60'tan 50'ye küçült
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(6),
+            image:
+                movie.posterUrl.isNotEmpty
+                    ? DecorationImage(
+                      image: NetworkImage(movie.posterUrl),
+                      fit: BoxFit.cover,
+                    )
+                    : null,
+            color: movie.posterUrl.isEmpty ? AppTheme.secondaryGrey : null,
+          ),
+          child:
+              movie.posterUrl.isEmpty
+                  ? Icon(
+                    Icons.movie,
+                    color: Colors.white,
+                    size: 16,
+                  ) // İkon boyutunu küçült
+                  : null,
+        ),
+
+        const SizedBox(width: 8),
+
+        // Film adı ve rating
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min, // Minimum alan kullan
+            children: [
+              Text(
+                movie.title,
+                style: TextStyle(
+                  fontSize: fontSize - 1,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.darkGrey,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 2), // Spacing'i azalt
+              Wrap(
+                // Row yerine Wrap kullan
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  ...List.generate(
+                    5,
+                    (index) => Icon(
+                      index < (widget.comment['rating'] / 2)
+                          ? Icons.star
+                          : Icons.star_border,
+                      size: 10, // Yıldız boyutunu küçült
+                      color: Colors.amber,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${widget.comment['rating']}/10',
+                    style: TextStyle(
+                      fontSize: 9, // Font boyutunu küçült
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.primaryRed,
+                    ),
+                  ),
+                  if (isSpoiler) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 3,
+                        vertical: 1,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryRed,
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                      child: Text(
+                        'SPOILER',
+                        style: TextStyle(
+                          fontSize: 7, // Font boyutunu küçült
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCommentContent(bool isSpoiler, double fontSize) {
+    if (isSpoiler && !_isRevealed) {
+      return GestureDetector(
+        onTap: () {
+          setState(() {
+            _isRevealed = true;
+          });
+        },
+        child: Container(
+          width: double.infinity,
+          height: double.infinity, // Tüm alan kullan
+          decoration: BoxDecoration(
+            color: Colors.black12,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: AppTheme.primaryRed.withOpacity(0.5),
+              width: 1,
+            ),
+          ),
+          child: Center(
+            // Center kullan
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.visibility_off,
+                  color: AppTheme.primaryRed,
+                  size: 20, // İkon boyutunu küçült
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'SPOILER İÇERİK',
+                  style: TextStyle(
+                    fontSize: fontSize - 2, // Font boyutunu küçült
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.primaryRed,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Görmek için tıklayın',
+                  style: TextStyle(
+                    fontSize: fontSize - 4, // Font boyutunu küçült
+                    color: AppTheme.secondaryGrey,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (isSpoiler && _isRevealed) ...[
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
+            decoration: BoxDecoration(
+              color: AppTheme.primaryRed.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.visibility, color: AppTheme.primaryRed, size: 12),
+                const SizedBox(width: 4),
+                Text(
+                  'Spoiler görünüyor',
+                  style: TextStyle(
+                    fontSize: fontSize - 4,
+                    color: AppTheme.primaryRed,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _isRevealed = false;
+                    });
+                  },
+                  child: Text(
+                    'Gizle',
+                    style: TextStyle(
+                      fontSize: fontSize - 4,
+                      color: AppTheme.primaryRed,
+                      fontWeight: FontWeight.bold,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 6),
+        ],
+        Expanded(
+          child: Text(
+            widget.comment['comment'],
+            style: TextStyle(
+              fontSize: fontSize - 1,
+              color: AppTheme.darkGrey,
+              height: 1.3,
+            ),
+            maxLines:
+                isSpoiler && _isRevealed
+                    ? 3
+                    : 4, // Spoiler açıksa daha az satır
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
   }
 }
