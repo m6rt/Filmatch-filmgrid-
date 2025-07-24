@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'dart:async';
 import '../models/movie.dart';
 import '../services/batch_optimized_movie_service.dart';
+import '../services/profile_service.dart';
 import '../widgets/optimized_video_player.dart';
 import '../theme/app_theme.dart';
 import 'swipe_view_constants.dart';
@@ -19,6 +20,7 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
 
   // Film servisi
   final BatchOptimizedMovieService _movieService = BatchOptimizedMovieService();
+  final ProfileService _profileService = ProfileService();
   Movie? _currentMovie;
 
   // Video pozisyonunu saklamak için
@@ -64,6 +66,10 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
 
     try {
       await _movieService.initializeService();
+
+      // Kullanıcının izleme listesini al
+      await _filterWatchlistMovies();
+
       _currentMovie = _movieService.currentMovie;
 
       setState(() {
@@ -74,6 +80,22 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
       setState(() {
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _filterWatchlistMovies() async {
+    try {
+      // Kullanıcının izleme listesindeki film ID'lerini al
+      final watchlistMovieIds = await _profileService.getWatchlistMovieIds();
+
+      // Movie service'e izleme listesindeki filmleri filtrelemesini söyle
+      await _movieService.filterWatchlistMovies(watchlistMovieIds);
+
+      print(
+        'İzleme listesinde ${watchlistMovieIds.length} film var, bunlar SwipeView\'dan filtrelendi',
+      );
+    } catch (e) {
+      print('İzleme listesi filtreleme hatası: $e');
     }
   }
 
@@ -142,6 +164,11 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
         isLike ? SwipeAction.like : SwipeAction.dislike,
       );
       _movieService.printUserPreferences();
+
+      // Eğer beğenildiyse izleme listesine ekle
+      if (isLike) {
+        _addToWatchlist(_currentMovie!);
+      }
     }
 
     double targetOffset = isLike ? 500.0 : -500.0;
@@ -254,15 +281,29 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
           children: [
             Icon(isLike ? Icons.favorite : Icons.close, color: AppTheme.white),
             SizedBox(width: 8),
-            Text(
-              isLike
-                  ? SwipeViewConstants.likedMessage
-                  : SwipeViewConstants.dislikedMessage,
-              style: Theme.of(context).textTheme.labelLarge,
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  isLike
+                      ? SwipeViewConstants.likedMessage
+                      : SwipeViewConstants.dislikedMessage,
+                  style: Theme.of(context).textTheme.labelLarge,
+                ),
+                if (isLike) ...[
+                  SizedBox(height: 4),
+                  Text(
+                    '📋 İzleme listesine eklendi',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: AppTheme.white.withOpacity(0.9),
+                    ),
+                  ),
+                ],
+              ],
             ),
           ],
         ),
-        duration: Duration(seconds: 1),
+        duration: Duration(seconds: 2), // Biraz daha uzun süre göster
         backgroundColor: isLike ? AppTheme.primaryRed : AppTheme.secondaryGrey,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -467,6 +508,87 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
     );
   }
 
+  Future<void> _addToWatchlist(Movie movie) async {
+    try {
+      final success = await _profileService.addToWatchlist(movie.id.toString());
+      if (success) {
+        print('Film izleme listesine eklendi: ${movie.title}');
+      } else {
+        print(
+          'Film zaten izleme listesinde veya ekleme başarısız: ${movie.title}',
+        );
+      }
+    } catch (e) {
+      print('İzleme listesine ekleme hatası: $e');
+    }
+  }
+
+  void _showClearWatchlistDialog() {
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: Text('İzleme Listesini Temizle'),
+            content: Text(
+              'Tüm izleme listenizi temizlemek istediğinizden emin misiniz? '
+              'Bu işlem geri alınamaz ve tüm beğendiğiniz filmler listeden çıkacak.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text('İptal'),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  Navigator.pop(context);
+                  await _clearWatchlistAndReload();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryRed,
+                ),
+                child: Text('Temizle', style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          ),
+    );
+  }
+
+  Future<void> _clearWatchlistAndReload() async {
+    try {
+      setState(() {
+        _isLoading = true;
+      });
+
+      // ProfileService'e watchlist temizleme metodu eklemek gerekiyor
+      // Şimdilik manuel olarak Firestore'dan temizleyelim
+      final user = _profileService.currentUser;
+      if (user != null) {
+        await _profileService.clearWatchlist();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('İzleme listesi temizlendi! 🎬'),
+            backgroundColor: AppTheme.primaryRed,
+          ),
+        );
+
+        // Filmleri yeniden yükle
+        await _loadMovies();
+      }
+    } catch (e) {
+      print('Watchlist temizleme hatası: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Bir hata oluştu, lütfen tekrar deneyin.'),
+          backgroundColor: AppTheme.secondaryGrey,
+        ),
+      );
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
@@ -537,6 +659,17 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
                   child: Text(
                     SwipeViewConstants.retryButtonText,
                     style: TextStyle(fontSize: isTablet ? 16 : 14),
+                  ),
+                ),
+                SizedBox(height: screenHeight * 0.02),
+                TextButton(
+                  onPressed: _showClearWatchlistDialog,
+                  child: Text(
+                    'İzleme Listesini Temizle',
+                    style: TextStyle(
+                      fontSize: isTablet ? 16 : 14,
+                      color: AppTheme.primaryRed,
+                    ),
                   ),
                 ),
               ],

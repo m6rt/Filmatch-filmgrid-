@@ -211,6 +211,23 @@ class ProfileService {
     }
   }
 
+  // Tüm watchlist'i temizle
+  Future<bool> clearWatchlist() async {
+    final user = currentUser;
+    if (user == null) return false;
+
+    try {
+      await _firestore.collection('users').doc(user.uid).update({
+        'watchlistMovieIds': [],
+        'lastUpdated': DateTime.now().millisecondsSinceEpoch,
+      });
+      return true;
+    } catch (e) {
+      print('Error clearing watchlist: $e');
+      return false;
+    }
+  }
+
   // Watchlist filmlerini getir
   Future<List<Movie>> getWatchlistMovies(List<String> movieIds) async {
     if (movieIds.isEmpty) return [];
@@ -264,6 +281,26 @@ class ProfileService {
     } catch (e) {
       print('Error checking favorite status: $e');
       return false;
+    }
+  }
+
+  // Kullanıcının watchlist'indeki film ID'lerini getir
+  Future<List<String>> getWatchlistMovieIds() async {
+    final user = currentUser;
+    if (user == null) return [];
+
+    try {
+      final doc = await _firestore.collection('users').doc(user.uid).get();
+      if (doc.exists) {
+        final watchlistIds = List<String>.from(
+          doc.data()?['watchlistMovieIds'] ?? [],
+        );
+        return watchlistIds;
+      }
+      return [];
+    } catch (e) {
+      print('Error getting watchlist movie IDs: $e');
+      return [];
     }
   }
 

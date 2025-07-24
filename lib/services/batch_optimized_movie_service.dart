@@ -466,6 +466,64 @@ class BatchOptimizedMovieService {
       );
     }
   }
+
+  // Watchlist'teki filmleri mevcut batch'ten filtrele
+  Future<void> filterWatchlistMovies(List<String> watchlistMovieIds) async {
+    if (watchlistMovieIds.isEmpty) return;
+
+    print('🔍 Filtreleme öncesi:');
+    print('  - Tüm filmler: ${_allMovies.length}');
+    print('  - Mevcut batch: ${_currentBatch.length}');
+    print('  - Sonraki batch: ${_nextBatch.length}');
+    print('  - Watchlist IDs: $watchlistMovieIds');
+
+    final originalMovieCount = _allMovies.length;
+
+    // Önce _allMovies listesinden watchlist'teki filmleri çıkar
+    _allMovies.removeWhere(
+      (movie) => watchlistMovieIds.contains(movie.id.toString()),
+    );
+
+    // Mevcut batch'ten watchlist'teki filmleri çıkar
+    _currentBatch.removeWhere(
+      (movie) => watchlistMovieIds.contains(movie.id.toString()),
+    );
+
+    // Sonraki batch'ten de çıkar
+    _nextBatch.removeWhere(
+      (movie) => watchlistMovieIds.contains(movie.id.toString()),
+    );
+
+    // Eğer çok fazla film filtrelendiyse uyarı ver
+    final filteredCount = watchlistMovieIds.length;
+    final remainingMovies = _allMovies.length;
+
+    if (filteredCount > originalMovieCount * 0.8) {
+      print('⚠️ DİKKAT: Çok fazla film filtrelendi!');
+      print('  - Filtrelenen: $filteredCount film');
+      print('  - Kalan: $remainingMovies film');
+      print('  - Bu kullanıcı çoğu filmi beğenmiş.');
+    }
+
+    // Eğer mevcut batch boşaldıysa, yeni batch oluştur
+    if (_currentBatch.isEmpty && _allMovies.isNotEmpty) {
+      print('📝 Mevcut batch boş, yeni batch oluşturuluyor...');
+      _currentBatch = await _generateRandomBatch();
+      _currentIndex = 0;
+    }
+
+    // Eğer sonraki batch boşaldıysa, yeni batch hazırla
+    if (_nextBatch.isEmpty && _allMovies.isNotEmpty) {
+      print('📝 Sonraki batch boş, yeni batch hazırlanıyor...');
+      _nextBatch = await _generateRandomBatch();
+    }
+
+    print('🚫 Filtreleme sonrası:');
+    print('  - Tüm filmler: ${_allMovies.length}');
+    print('  - Mevcut batch: ${_currentBatch.length}');
+    print('  - Sonraki batch: ${_nextBatch.length}');
+    print('  - ${watchlistMovieIds.length} watchlist filmi filtrelendi');
+  }
 }
 
 // Yardımcı sınıflar
