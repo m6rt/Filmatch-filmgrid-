@@ -932,40 +932,85 @@ class _SpoilerCommentCardState extends State<_SpoilerCommentCard> {
     return Container(
       width: cardWidth,
       margin: EdgeInsets.only(right: margin),
-      child: Card(
-        elevation: 2,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side:
-              isSpoiler
-                  ? BorderSide(color: AppTheme.primaryRed, width: 2)
-                  : BorderSide.none,
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Film bilgisi - Compact header
-              _buildMovieHeader(movie, fontSize, isSpoiler),
+      child: GestureDetector(
+        onTap: () {
+          // Filmin yorum sayfasına git
+          Navigator.pushNamed(
+            context,
+            '/comments',
+            arguments: {'movieId': movie.id, 'movie': movie},
+          );
+        },
+        child: Card(
+          elevation: 2,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side:
+                isSpoiler
+                    ? BorderSide(color: AppTheme.primaryRed, width: 2)
+                    : BorderSide.none,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Film bilgisi - Compact header
+                _buildMovieHeader(movie, fontSize, isSpoiler),
 
-              SizedBox(height: spacing),
+                SizedBox(height: spacing),
 
-              // Yorum metni (spoiler kontrolü ile) - Flexible kullan
-              Expanded(child: _buildCommentContent(isSpoiler, fontSize)),
+                // Yorum metni (spoiler kontrolü ile) - Flexible kullan
+                Expanded(child: _buildCommentContent(isSpoiler, fontSize)),
 
-              // Tarih - Fixed bottom
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  widget.comment['date'],
-                  style: TextStyle(
-                    fontSize: fontSize - 2,
-                    color: AppTheme.secondaryGrey,
+                // Tarih ve "Yorumları Gör" butonu
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          widget.comment['date'],
+                          style: TextStyle(
+                            fontSize: fontSize - 2,
+                            color: AppTheme.secondaryGrey,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryRed.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.comment,
+                              size: 12,
+                              color: AppTheme.primaryRed,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Yorumlar',
+                              style: TextStyle(
+                                fontSize: fontSize - 3,
+                                color: AppTheme.primaryRed,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -977,8 +1022,8 @@ class _SpoilerCommentCardState extends State<_SpoilerCommentCard> {
       children: [
         // Film posteri (küçük)
         Container(
-          width: 35, // 40'tan 35'e küçült
-          height: 50, // 60'tan 50'ye küçült
+          width: 35,
+          height: 50,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(6),
             image:
@@ -992,11 +1037,7 @@ class _SpoilerCommentCardState extends State<_SpoilerCommentCard> {
           ),
           child:
               movie.posterUrl.isEmpty
-                  ? Icon(
-                    Icons.movie,
-                    color: Colors.white,
-                    size: 16,
-                  ) // İkon boyutunu küçült
+                  ? Icon(Icons.movie, color: Colors.white, size: 16)
                   : null,
         ),
 
@@ -1006,7 +1047,7 @@ class _SpoilerCommentCardState extends State<_SpoilerCommentCard> {
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min, // Minimum alan kullan
+            mainAxisSize: MainAxisSize.min,
             children: [
               Text(
                 movie.title,
@@ -1018,9 +1059,8 @@ class _SpoilerCommentCardState extends State<_SpoilerCommentCard> {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: 2), // Spacing'i azalt
+              const SizedBox(height: 2),
               Wrap(
-                // Row yerine Wrap kullan
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   ...List.generate(
@@ -1029,7 +1069,7 @@ class _SpoilerCommentCardState extends State<_SpoilerCommentCard> {
                       index < (widget.comment['rating'] / 2)
                           ? Icons.star
                           : Icons.star_border,
-                      size: 10, // Yıldız boyutunu küçült
+                      size: 10,
                       color: Colors.amber,
                     ),
                   ),
@@ -1037,7 +1077,7 @@ class _SpoilerCommentCardState extends State<_SpoilerCommentCard> {
                   Text(
                     '${widget.comment['rating']}/10',
                     style: TextStyle(
-                      fontSize: 9, // Font boyutunu küçült
+                      fontSize: 9,
                       fontWeight: FontWeight.bold,
                       color: AppTheme.primaryRed,
                     ),
@@ -1056,7 +1096,7 @@ class _SpoilerCommentCardState extends State<_SpoilerCommentCard> {
                       child: Text(
                         'SPOILER',
                         style: TextStyle(
-                          fontSize: 7, // Font boyutunu küçült
+                          fontSize: 7,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
                         ),
@@ -1082,7 +1122,7 @@ class _SpoilerCommentCardState extends State<_SpoilerCommentCard> {
         },
         child: Container(
           width: double.infinity,
-          height: double.infinity, // Tüm alan kullan
+          height: double.infinity,
           decoration: BoxDecoration(
             color: Colors.black12,
             borderRadius: BorderRadius.circular(8),
@@ -1092,7 +1132,6 @@ class _SpoilerCommentCardState extends State<_SpoilerCommentCard> {
             ),
           ),
           child: Center(
-            // Center kullan
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               mainAxisSize: MainAxisSize.min,
@@ -1100,13 +1139,13 @@ class _SpoilerCommentCardState extends State<_SpoilerCommentCard> {
                 Icon(
                   Icons.visibility_off,
                   color: AppTheme.primaryRed,
-                  size: 20, // İkon boyutunu küçült
+                  size: 20,
                 ),
                 const SizedBox(height: 6),
                 Text(
                   'SPOILER İÇERİK',
                   style: TextStyle(
-                    fontSize: fontSize - 2, // Font boyutunu küçült
+                    fontSize: fontSize - 2,
                     fontWeight: FontWeight.bold,
                     color: AppTheme.primaryRed,
                   ),
@@ -1116,7 +1155,7 @@ class _SpoilerCommentCardState extends State<_SpoilerCommentCard> {
                 Text(
                   'Görmek için tıklayın',
                   style: TextStyle(
-                    fontSize: fontSize - 4, // Font boyutunu küçült
+                    fontSize: fontSize - 4,
                     color: AppTheme.secondaryGrey,
                   ),
                   textAlign: TextAlign.center,
@@ -1181,10 +1220,7 @@ class _SpoilerCommentCardState extends State<_SpoilerCommentCard> {
               color: AppTheme.darkGrey,
               height: 1.3,
             ),
-            maxLines:
-                isSpoiler && _isRevealed
-                    ? 3
-                    : 4, // Spoiler açıksa daha az satır
+            maxLines: isSpoiler && _isRevealed ? 3 : 4,
             overflow: TextOverflow.ellipsis,
           ),
         ),
