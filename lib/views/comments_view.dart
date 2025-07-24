@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/movie.dart';
 import '../theme/app_theme.dart';
 import '../services/comments_service.dart';
@@ -8,7 +10,7 @@ class CommentsView extends StatefulWidget {
   final Movie? movie;
 
   const CommentsView({Key? key, required this.movieId, this.movie})
-      : super(key: key);
+    : super(key: key);
 
   @override
   State<CommentsView> createState() => _CommentsViewState();
@@ -23,7 +25,6 @@ class _CommentsViewState extends State<CommentsView> {
 
   // Service ve state
   final CommentsService _commentsService = CommentsService();
-  final String _currentUsername = 'Kullanıcı'; // TODO: Gerçek kullanıcı adını al
 
   List<Map<String, dynamic>> _comments = [];
   List<Map<String, dynamic>> _filteredComments = []; // Filtrelenmiş yorumlar
@@ -31,6 +32,7 @@ class _CommentsViewState extends State<CommentsView> {
   bool _isLoading = true;
   bool _isSending = false;
   bool _isEditMode = false;
+  String _currentUsername = 'Kullanıcı'; // Başlangıç değeri
 
   // Dil seçenekleri
   final Map<String, String> _languages = {
@@ -55,7 +57,41 @@ class _CommentsViewState extends State<CommentsView> {
   @override
   void initState() {
     super.initState();
+    _getCurrentUser();
     _loadData();
+  }
+
+  void _getCurrentUser() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      _getUsernameFromFirestore(user.uid);
+    }
+  }
+
+  Future<void> _getUsernameFromFirestore(String uid) async {
+    try {
+      final doc =
+          await FirebaseFirestore.instance.collection('users').doc(uid).get();
+
+      if (doc.exists && doc.data()?['username'] != null) {
+        setState(() {
+          _currentUsername = doc.data()!['username'];
+        });
+      } else {
+        // Eğer Firestore'da username yoksa fallback olarak email kullan
+        final user = FirebaseAuth.instance.currentUser;
+        setState(() {
+          _currentUsername = user?.email?.split('@')[0] ?? 'Kullanıcı';
+        });
+      }
+    } catch (e) {
+      print('Error getting username from Firestore: $e');
+      // Hata durumunda fallback
+      final user = FirebaseAuth.instance.currentUser;
+      setState(() {
+        _currentUsername = user?.email?.split('@')[0] ?? 'Kullanıcı';
+      });
+    }
   }
 
   @override
@@ -71,6 +107,34 @@ class _CommentsViewState extends State<CommentsView> {
       // Tüm yorumları yükle
       final comments = await _commentsService.getComments(widget.movieId);
 
+      // Her yorum için kullanıcının profil fotoğrafını yükle
+      final enrichedComments = await Future.wait(
+        comments.map((comment) async {
+          try {
+            final username = comment['username'];
+            if (username != null && username != 'Kullanıcı') {
+              // Username'e göre Firestore'dan kullanıcı bilgilerini al
+              final userQuery =
+                  await FirebaseFirestore.instance
+                      .collection('users')
+                      .where('username', isEqualTo: username)
+                      .limit(1)
+                      .get();
+
+              if (userQuery.docs.isNotEmpty) {
+                final userData = userQuery.docs.first.data();
+                comment['profileImageUrl'] = userData['profilePictureURL'];
+              }
+            }
+          } catch (e) {
+            print(
+              'Error loading profile image for user ${comment['username']}: $e',
+            );
+          }
+          return comment;
+        }).toList(),
+      );
+
       // Kullanıcının yorumunu kontrol et
       final userComment = await _commentsService.getUserComment(
         widget.movieId,
@@ -78,7 +142,7 @@ class _CommentsViewState extends State<CommentsView> {
       );
 
       setState(() {
-        _comments = comments;
+        _comments = enrichedComments;
         _userComment = userComment;
         _isLoading = false;
 
@@ -103,9 +167,10 @@ class _CommentsViewState extends State<CommentsView> {
     if (_filterLanguage == 'ALL') {
       _filteredComments = List.from(_comments);
     } else {
-      _filteredComments = _comments
-          .where((comment) => comment['language'] == _filterLanguage)
-          .toList();
+      _filteredComments =
+          _comments
+              .where((comment) => comment['language'] == _filterLanguage)
+              .toList();
     }
   }
 
@@ -145,33 +210,34 @@ class _CommentsViewState extends State<CommentsView> {
               style: const TextStyle(color: Colors.white),
               dropdownColor: AppTheme.primaryRed,
               underline: const SizedBox(),
-              items: _filterLanguages.entries
-                  .map(
-                    (entry) => DropdownMenuItem(
-                      value: entry.key,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            entry.value,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
-                            ),
+              items:
+                  _filterLanguages.entries
+                      .map(
+                        (entry) => DropdownMenuItem(
+                          value: entry.key,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                entry.value,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              if (entry.key == _filterLanguage) ...[
+                                const SizedBox(width: 8),
+                                const Icon(
+                                  Icons.check,
+                                  color: Colors.white,
+                                  size: 16,
+                                ),
+                              ],
+                            ],
                           ),
-                          if (entry.key == _filterLanguage) ...[
-                            const SizedBox(width: 8),
-                            const Icon(
-                              Icons.check,
-                              color: Colors.white,
-                              size: 16,
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  )
-                  .toList(),
+                        ),
+                      )
+                      .toList(),
               onChanged: _onLanguageFilterChanged,
             ),
           ),
@@ -181,38 +247,39 @@ class _CommentsViewState extends State<CommentsView> {
         children: [
           // Film posteri ve yorumlar
           Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : RefreshIndicator(
-                    onRefresh: _loadData,
-                    child: ListView(
-                      padding: const EdgeInsets.all(16),
-                      children: [
-                        // Film bilgisi
-                        if (widget.movie != null) _buildMovieInfo(),
+            child:
+                _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : RefreshIndicator(
+                      onRefresh: _loadData,
+                      child: ListView(
+                        padding: const EdgeInsets.all(16),
+                        children: [
+                          // Film bilgisi
+                          if (widget.movie != null) _buildMovieInfo(),
 
-                        const SizedBox(height: 24),
+                          const SizedBox(height: 24),
 
-                        // Yorumlar başlığı ve filtre bilgisi
-                        _buildCommentsHeader(),
+                          // Yorumlar başlığı ve filtre bilgisi
+                          _buildCommentsHeader(),
 
-                        const SizedBox(height: 16),
+                          const SizedBox(height: 16),
 
-                        // Yorumlar listesi
-                        if (_filteredComments.isEmpty)
-                          _buildEmptyComments()
-                        else
-                          ..._filteredComments.map(
-                            (comment) => Column(
-                              children: [
-                                _buildCommentCard(comment),
-                                const SizedBox(height: 12),
-                              ],
+                          // Yorumlar listesi
+                          if (_filteredComments.isEmpty)
+                            _buildEmptyComments()
+                          else
+                            ..._filteredComments.map(
+                              (comment) => Column(
+                                children: [
+                                  _buildCommentCard(comment),
+                                  const SizedBox(height: 12),
+                                ],
+                              ),
                             ),
-                          ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
           ),
 
           // Yorum yap/düzenle formu (sadece yorum yoksa veya edit modeysa)
@@ -246,9 +313,7 @@ class _CommentsViewState extends State<CommentsView> {
               decoration: BoxDecoration(
                 color: AppTheme.primaryRed.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: AppTheme.primaryRed.withOpacity(0.3),
-                ),
+                border: Border.all(color: AppTheme.primaryRed.withOpacity(0.3)),
               ),
               child: Text(
                 '${filteredCount}/${totalComments}',
@@ -265,11 +330,7 @@ class _CommentsViewState extends State<CommentsView> {
         if (_filterLanguage != 'ALL') ...[
           Row(
             children: [
-              Icon(
-                Icons.filter_list,
-                size: 16,
-                color: AppTheme.secondaryGrey,
-              ),
+              Icon(Icons.filter_list, size: 16, color: AppTheme.secondaryGrey),
               const SizedBox(width: 4),
               Text(
                 'Filtre: $filterName',
@@ -297,11 +358,7 @@ class _CommentsViewState extends State<CommentsView> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
-                        Icons.clear,
-                        size: 12,
-                        color: AppTheme.primaryRed,
-                      ),
+                      Icon(Icons.clear, size: 12, color: AppTheme.primaryRed),
                       const SizedBox(width: 2),
                       Text(
                         'Temizle',
@@ -332,17 +389,19 @@ class _CommentsViewState extends State<CommentsView> {
           height: 150,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(8),
-            image: widget.movie!.posterUrl.isNotEmpty
-                ? DecorationImage(
-                    image: NetworkImage(widget.movie!.posterUrl),
-                    fit: BoxFit.cover,
-                  )
-                : null,
+            image:
+                widget.movie!.posterUrl.isNotEmpty
+                    ? DecorationImage(
+                      image: NetworkImage(widget.movie!.posterUrl),
+                      fit: BoxFit.cover,
+                    )
+                    : null,
             color: widget.movie!.posterUrl.isEmpty ? Colors.grey : null,
           ),
-          child: widget.movie!.posterUrl.isEmpty
-              ? const Icon(Icons.movie, size: 50, color: Colors.white)
-              : null,
+          child:
+              widget.movie!.posterUrl.isEmpty
+                  ? const Icon(Icons.movie, size: 50, color: Colors.white)
+                  : null,
         ),
         const SizedBox(width: 16),
         // Film bilgileri
@@ -393,8 +452,8 @@ class _CommentsViewState extends State<CommentsView> {
             isFiltered
                 ? '$filterName dilinde yorum bulunmuyor.\nFiltreyi temizleyebilir veya başka dil seçebilirsiniz.'
                 : _userComment != null
-                    ? 'Başka kullanıcı yorumu bulunmuyor.'
-                    : 'Henüz yorum yapılmamış.\nİlk yorumu siz yapın!',
+                ? 'Başka kullanıcı yorumu bulunmuyor.'
+                : 'Henüz yorum yapılmamış.\nİlk yorumu siz yapın!',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 16, color: AppTheme.secondaryGrey),
           ),
@@ -430,6 +489,7 @@ class _CommentsViewState extends State<CommentsView> {
       isSpoiler: comment['isSpoiler'],
       isCurrentUser: isCurrentUser,
       language: comment['language'] ?? 'TR',
+      profileImageUrl: comment['profileImageUrl'],
       onEdit: isCurrentUser ? _enterEditMode : null,
       onDelete: isCurrentUser ? _showDeleteDialog : null,
     );
@@ -493,13 +553,14 @@ class _CommentsViewState extends State<CommentsView> {
             children: [
               // Spoiler switch'i
               GestureDetector(
-                onTap: _isSending
-                    ? null
-                    : () {
-                        setState(() {
-                          _isSpoiler = !_isSpoiler;
-                        });
-                      },
+                onTap:
+                    _isSending
+                        ? null
+                        : () {
+                          setState(() {
+                            _isSpoiler = !_isSpoiler;
+                          });
+                        },
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
@@ -553,13 +614,14 @@ class _CommentsViewState extends State<CommentsView> {
                             child: Text('${index + 1}/10'),
                           ),
                         ),
-                        onChanged: _isSending
-                            ? null
-                            : (value) {
-                                setState(() {
-                                  _selectedRating = value ?? 5;
-                                });
-                              },
+                        onChanged:
+                            _isSending
+                                ? null
+                                : (value) {
+                                  setState(() {
+                                    _selectedRating = value ?? 5;
+                                  });
+                                },
                       ),
                     ),
                   ],
@@ -589,24 +651,26 @@ class _CommentsViewState extends State<CommentsView> {
                       child: DropdownButton<String>(
                         value: _selectedLanguage,
                         isExpanded: true,
-                        items: _languages.entries
-                            .map(
-                              (entry) => DropdownMenuItem(
-                                value: entry.key,
-                                child: Text(
-                                  entry.value,
-                                  style: const TextStyle(fontSize: 14),
-                                ),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: _isSending
-                            ? null
-                            : (value) {
-                                setState(() {
-                                  _selectedLanguage = value ?? 'TR';
-                                });
-                              },
+                        items:
+                            _languages.entries
+                                .map(
+                                  (entry) => DropdownMenuItem(
+                                    value: entry.key,
+                                    child: Text(
+                                      entry.value,
+                                      style: const TextStyle(fontSize: 14),
+                                    ),
+                                  ),
+                                )
+                                .toList(),
+                        onChanged:
+                            _isSending
+                                ? null
+                                : (value) {
+                                  setState(() {
+                                    _selectedLanguage = value ?? 'TR';
+                                  });
+                                },
                       ),
                     ),
                   ],
@@ -626,16 +690,17 @@ class _CommentsViewState extends State<CommentsView> {
                     vertical: 12,
                   ),
                 ),
-                child: _isSending
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ),
-                      )
-                    : Text(_isEditMode ? 'Güncelle' : 'Gönder'),
+                child:
+                    _isSending
+                        ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                        : Text(_isEditMode ? 'Güncelle' : 'Gönder'),
               ),
             ],
           ),
@@ -726,23 +791,24 @@ class _CommentsViewState extends State<CommentsView> {
   Future<void> _showDeleteDialog() async {
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Yorumu Sil'),
-        content: const Text(
-          'Bu yorumu silmek istediğinizden emin misiniz?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('İptal'),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Yorumu Sil'),
+            content: const Text(
+              'Bu yorumu silmek istediğinizden emin misiniz?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('İptal'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: const Text('Sil'),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Sil'),
-          ),
-        ],
-      ),
     );
 
     if (confirm == true) {
@@ -779,6 +845,7 @@ class _SpoilerCommentCard extends StatefulWidget {
   final bool isSpoiler;
   final bool isCurrentUser;
   final String language;
+  final String? profileImageUrl;
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
 
@@ -790,6 +857,7 @@ class _SpoilerCommentCard extends StatefulWidget {
     required this.isSpoiler,
     required this.isCurrentUser,
     required this.language,
+    this.profileImageUrl,
     this.onEdit,
     this.onDelete,
   });
@@ -824,13 +892,15 @@ class _SpoilerCommentCardState extends State<_SpoilerCommentCard> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
-        color: widget.isCurrentUser
-            ? AppTheme.primaryRed.withOpacity(0.05)
-            : AppTheme.lightGrey,
+        color:
+            widget.isCurrentUser
+                ? AppTheme.primaryRed.withOpacity(0.05)
+                : AppTheme.lightGrey,
         border: Border.all(
-          color: widget.isCurrentUser
-              ? AppTheme.primaryRed
-              : widget.isSpoiler && !_isRevealed
+          color:
+              widget.isCurrentUser
+                  ? AppTheme.primaryRed
+                  : widget.isSpoiler && !_isRevealed
                   ? AppTheme.primaryRed.withOpacity(0.3)
                   : AppTheme.secondaryGrey.withOpacity(0.3),
           width: widget.isCurrentUser ? 2 : 1,
@@ -843,17 +913,27 @@ class _SpoilerCommentCardState extends State<_SpoilerCommentCard> {
           Row(
             children: [
               CircleAvatar(
-                backgroundColor: widget.isCurrentUser
-                    ? AppTheme.primaryRed
-                    : AppTheme.secondaryGrey,
+                backgroundColor:
+                    widget.isCurrentUser
+                        ? AppTheme.primaryRed
+                        : AppTheme.secondaryGrey,
                 radius: 20,
-                child: Text(
-                  widget.username.substring(0, 1),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                backgroundImage:
+                    widget.profileImageUrl != null &&
+                            widget.profileImageUrl!.isNotEmpty
+                        ? NetworkImage(widget.profileImageUrl!)
+                        : null,
+                child:
+                    (widget.profileImageUrl == null ||
+                            widget.profileImageUrl!.isEmpty)
+                        ? Text(
+                          widget.username.substring(0, 1),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        )
+                        : null,
               ),
               const SizedBox(width: 12),
               Expanded(

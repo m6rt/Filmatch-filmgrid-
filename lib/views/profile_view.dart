@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart' as firebase_storage;
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 import '../models/user_profile.dart';
 import '../models/movie.dart';
 import '../services/profile_service.dart';
+import '../services/auth_service.dart';
 import '../services/comments_service.dart'; // Bu import'u ekleyin
 import '../theme/app_theme.dart';
 
@@ -17,6 +23,7 @@ class _ProfileViewState extends State<ProfileView>
   final ProfileService _profileService = ProfileService();
   final CommentsService _commentsService =
       CommentsService(); // CommentsService ekleyin
+  final AuthService _authService = AuthService();
 
   UserProfile? _userProfile;
   List<Movie> _favoriteMovies = [];
@@ -25,12 +32,278 @@ class _ProfileViewState extends State<ProfileView>
   bool _isLoading = true;
   bool _isUpdating = false;
   DateTime? _lastRefresh;
+  String _currentUsername = 'Kullanıcı'; // Gerçek kullanıcı adı
+
+  // Profil kurulum için gerekli alanlar
+  File? _tempProfilePicture;
+  String _newUsername = '';
+  final ImagePicker _picker = ImagePicker();
+  final firebase_storage.FirebaseStorage _storage =
+      firebase_storage.FirebaseStorage.instance;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _loadProfile();
+    _checkAndSetupProfile();
+  }
+
+  Future<void> _checkAndSetupProfile() async {
+    // Önce username var mı kontrol et
+    final hasUsername = await _authService.hasUsername();
+
+    if (!hasUsername) {
+      // Username yoksa kurulum dialog'unu göster
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showProfileSetupDialog();
+      });
+    } else {
+      // Username varsa normal profil yükleme işlemini yap
+      _getCurrentUser();
+      _loadProfile();
+    }
+  }
+
+  void _showLoadingDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return Center(child: CircularProgressIndicator());
+      },
+    );
+  }
+
+  Future<void> _saveUserCredentials(
+    String username,
+    File? profilePhoto,
+    String uid,
+  ) async {
+    try {
+      String? profileImageURL;
+
+      if (profilePhoto != null) {
+        firebase_storage.Reference ref = _storage
+            .ref()
+            .child('profile_pictures')
+            .child('${uid}_${DateTime.now().millisecondsSinceEpoch}.jpg');
+        firebase_storage.UploadTask uploadTask = ref.putFile(profilePhoto);
+        await uploadTask;
+        profileImageURL = await ref.getDownloadURL();
+      }
+
+      await FirebaseFirestore.instance.collection('users').doc(uid).set({
+        'profilePictureURL': profileImageURL,
+        'username': username.toLowerCase(),
+        'dateTime': DateTime.now(),
+      });
+
+      Navigator.pop(context); // Loading dialog'unu kapat
+      Navigator.pop(context); // Setup dialog'unu kapat
+
+      // Profil kurulduktan sonra normal profil yükleme işlemini yap
+      _getCurrentUser();
+      _loadProfile();
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Profil başarıyla oluşturuldu!')));
+    } catch (e) {
+      Navigator.pop(context); // Loading dialog'unu kapat
+      print("Profile save error: $e");
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Bir hata oluştu: $e")));
+    }
+  }
+
+  Future<void> _showProfileSetupDialog() async {
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Text(
+                'Profil Bilgilerinizi Girin',
+                style: TextStyle(
+                  fontFamily: "PlayfairDisplay",
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              content: SizedBox(
+                height: 250,
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      // Profil fotoğrafı seçici
+                      GestureDetector(
+                        onTap: () async {
+                          try {
+                            final XFile? pickedFile = await _picker.pickImage(
+                              source: ImageSource.gallery,
+                              imageQuality: 50,
+                              maxWidth: 800,
+                              maxHeight: 800,
+                            );
+                            if (pickedFile != null) {
+                              setState(() {
+                                _tempProfilePicture = File(pickedFile.path);
+                              });
+                            }
+                          } catch (e) {
+                            print("Image picker error: $e");
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text("Fotoğraf seçilemedi")),
+                            );
+                          }
+                        },
+                        child: Container(
+                          width: 100,
+                          height: 100,
+                          decoration: BoxDecoration(
+                            border: Border.all(color: AppTheme.primaryRed),
+                            shape: BoxShape.circle,
+                          ),
+                          child: CircleAvatar(
+                            radius: 48,
+                            backgroundColor: Colors.grey[100],
+                            backgroundImage:
+                                _tempProfilePicture != null
+                                    ? FileImage(_tempProfilePicture!)
+                                    : null,
+                            child:
+                                _tempProfilePicture == null
+                                    ? Icon(
+                                      Icons.add_a_photo,
+                                      size: 40,
+                                      color: AppTheme.primaryRed,
+                                    )
+                                    : null,
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: 20),
+                      // Username girişi
+                      TextField(
+                        decoration: InputDecoration(
+                          labelText: "Kullanıcı Adı",
+                          labelStyle: TextStyle(
+                            color: AppTheme.secondaryGrey,
+                            fontFamily: 'PlayfairDisplay',
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: AppTheme.primaryRed),
+                          ),
+                        ),
+                        onChanged: (value) {
+                          _newUsername = value;
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  child: Text(
+                    'Kaydet',
+                    style: TextStyle(
+                      fontFamily: "PlayfairDisplay",
+                      color: AppTheme.primaryRed,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  onPressed: () async {
+                    final user = FirebaseAuth.instance.currentUser;
+                    if (user == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Lütfen giriş yapın!')),
+                      );
+                      return;
+                    }
+
+                    if (_newUsername.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Lütfen bir kullanıcı adı girin'),
+                        ),
+                      );
+                      return;
+                    }
+
+                    if (await _authService.isUsernameTaken(
+                      _newUsername.toLowerCase(),
+                    )) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text("Kullanıcı ismi zaten kullanılıyor"),
+                        ),
+                      );
+                      return;
+                    }
+
+                    if (_tempProfilePicture == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text("Lütfen bir profil fotoğrafı seçin"),
+                        ),
+                      );
+                      return;
+                    }
+
+                    _showLoadingDialog();
+                    await _saveUserCredentials(
+                      _newUsername,
+                      _tempProfilePicture,
+                      user.uid,
+                    );
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _getCurrentUser() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      _getUsernameFromFirestore(user.uid);
+    }
+  }
+
+  Future<void> _getUsernameFromFirestore(String uid) async {
+    try {
+      final doc =
+          await FirebaseFirestore.instance.collection('users').doc(uid).get();
+
+      if (doc.exists && doc.data()?['username'] != null) {
+        setState(() {
+          _currentUsername = doc.data()!['username'];
+        });
+      } else {
+        // Eğer Firestore'da username yoksa fallback olarak email kullan
+        final user = FirebaseAuth.instance.currentUser;
+        setState(() {
+          _currentUsername = user?.email?.split('@')[0] ?? 'Kullanıcı';
+        });
+      }
+    } catch (e) {
+      print('Error getting username from Firestore: $e');
+      // Hata durumunda fallback
+      final user = FirebaseAuth.instance.currentUser;
+      setState(() {
+        _currentUsername = user?.email?.split('@')[0] ?? 'Kullanıcı';
+      });
+    }
   }
 
   @override
@@ -116,12 +389,12 @@ class _ProfileViewState extends State<ProfileView>
 
       for (int movieId in allMovieIds) {
         final comments = await _commentsService.getComments(movieId);
-        // Sadece bu kullanıcının yorumlarını filtrele (şimdilik "Kullanıcı" ile)
+        // Sadece bu kullanıcının yorumlarını filtrele
         final userComments =
             comments
                 .where(
                   (comment) =>
-                      comment['username'] == 'Kullanıcı' ||
+                      comment['username'] == _currentUsername ||
                       comment['username'] == 'Sen',
                 )
                 .toList();
@@ -248,15 +521,13 @@ class _ProfileViewState extends State<ProfileView>
     return Scaffold(
       backgroundColor: AppTheme.lightGrey,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: AppTheme.primaryRed,
         elevation: 0,
         title: Text(
-          'Profil',
-          style: TextStyle(
-            color: AppTheme.darkGrey,
-            fontWeight: FontWeight.bold,
-          ),
+          "Profil",
+          style: TextStyle(fontFamily: "Caveat Brush", fontSize: 40),
         ),
+        centerTitle: true,
         actions: [
           IconButton(
             onPressed: _loadProfile,
@@ -386,13 +657,6 @@ class _ProfileViewState extends State<ProfileView>
         ],
       ),
     );
-  }
-
-  Widget _buildUserCommentCard(
-    Map<String, dynamic> comment,
-    bool isSmallScreen,
-  ) {
-    return _SpoilerCommentCard(comment: comment, isSmallScreen: isSmallScreen);
   }
 
   Widget _buildProfileImage(bool isSmallScreen) {

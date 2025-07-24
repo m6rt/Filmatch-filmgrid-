@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -87,6 +88,41 @@ class AuthService {
     } catch (e) {
       print('AuthService resetPassword generic error: $e');
       rethrow;
+    }
+  }
+
+  // Kullanıcının username'i olup olmadığını kontrol et
+  Future<bool> hasUsername() async {
+    final user = currentUser;
+    if (user == null) return false;
+
+    try {
+      final doc =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .get();
+
+      return doc.exists && doc.data()?['username'] != null;
+    } catch (e) {
+      print('Error checking username: $e');
+      return false;
+    }
+  }
+
+  // Kullanıcı adının alınmış olup olmadığını kontrol et
+  Future<bool> isUsernameTaken(String username) async {
+    try {
+      final querySnapshot =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .where('username', isEqualTo: username.toLowerCase())
+              .get();
+
+      return querySnapshot.docs.isNotEmpty;
+    } catch (e) {
+      print('Error checking if username is taken: $e');
+      return true; // Hata durumunda güvenli taraf için true döndür
     }
   }
 }

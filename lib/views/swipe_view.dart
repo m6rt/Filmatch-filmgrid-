@@ -457,6 +457,16 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
     return rating.clamp(1.0, 10.0);
   }
 
+  void _showMovieComments() {
+    if (_currentMovie == null) return;
+
+    Navigator.pushNamed(
+      context,
+      '/comments',
+      arguments: {'movieId': _currentMovie!.id, 'movie': _currentMovie},
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
@@ -546,7 +556,12 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
             tooltip: SwipeViewConstants.statisticsLabel,
           ),
         ),
-        title: Text("Swipe"),
+        title: Text(
+          "Swipe",
+          style: TextStyle(fontFamily: "Caveat Brush", fontSize: 40),
+        ),
+        centerTitle: true,
+        backgroundColor: AppTheme.primaryRed,
         actions: [
           Semantics(
             label: 'Browse Films',
@@ -1118,6 +1133,52 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
                                         ? 40
                                         : SwipeViewConstants
                                             .actionButtonIconSize,
+                              ),
+                            ),
+                          ),
+                        ),
+                        // Yorum butonu
+                        Semantics(
+                          label: 'Comments',
+                          button: true,
+                          onTap: _showMovieComments,
+                          child: GestureDetector(
+                            onTap: _showMovieComments,
+                            child: Container(
+                              width:
+                                  isTablet
+                                      ? 70
+                                      : SwipeViewConstants.actionButtonSize -
+                                          10,
+                              height:
+                                  isTablet
+                                      ? 70
+                                      : SwipeViewConstants.actionButtonSize -
+                                          10,
+                              decoration: BoxDecoration(
+                                color: AppTheme.white,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: AppTheme.primaryRed,
+                                  width: 2,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.1),
+                                    blurRadius: 8,
+                                    offset: Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Icon(
+                                Icons.comment,
+                                color: AppTheme.primaryRed,
+                                size:
+                                    isTablet
+                                        ? 35
+                                        : SwipeViewConstants
+                                                .actionButtonIconSize -
+                                            5,
                               ),
                             ),
                           ),
