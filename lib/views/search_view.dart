@@ -1,3 +1,4 @@
+import 'package:filmgrid/views/public_profile_view.dart';
 import 'package:flutter/material.dart';
 import 'dart:async';
 import '../models/movie.dart';
@@ -23,7 +24,7 @@ class _SearchViewState extends State<SearchView> with TickerProviderStateMixin {
   List<UserProfile> _allUsers = [];
   List<Movie> _filteredMovies = [];
   List<UserProfile> _filteredUsers = [];
-  
+
   bool _isLoading = false;
   bool _isSearching = false;
   String _currentQuery = '';
@@ -49,15 +50,14 @@ class _SearchViewState extends State<SearchView> with TickerProviderStateMixin {
 
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
-    
+
     try {
       // Filmleri yükle
       await _movieService.initializeService();
       _allMovies = _movieService.getAllMovies();
-      
+
       // Kullanıcıları yükle
       _allUsers = await _profileService.getAllUsers();
-      
     } catch (e) {
       print('Veri yükleme hatası: $e');
     } finally {
@@ -67,9 +67,9 @@ class _SearchViewState extends State<SearchView> with TickerProviderStateMixin {
 
   void _onSearchChanged() {
     final query = _searchController.text;
-    
+
     if (_debounceTimer?.isActive ?? false) _debounceTimer!.cancel();
-    
+
     _debounceTimer = Timer(const Duration(milliseconds: 300), () {
       if (mounted && query != _currentQuery) {
         _currentQuery = query;
@@ -93,18 +93,24 @@ class _SearchViewState extends State<SearchView> with TickerProviderStateMixin {
     final lowerQuery = query.toLowerCase();
 
     // Film arama - başlık, yönetmen, oyuncu, tür
-    _filteredMovies = _allMovies.where((movie) {
-      return movie.title.toLowerCase().contains(lowerQuery) ||
-             movie.director.toLowerCase().contains(lowerQuery) ||
-             movie.cast.any((actor) => actor.toLowerCase().contains(lowerQuery)) ||
-             movie.genre.any((genre) => genre.toLowerCase().contains(lowerQuery));
-    }).toList();
+    _filteredMovies =
+        _allMovies.where((movie) {
+          return movie.title.toLowerCase().contains(lowerQuery) ||
+              movie.director.toLowerCase().contains(lowerQuery) ||
+              movie.cast.any(
+                (actor) => actor.toLowerCase().contains(lowerQuery),
+              ) ||
+              movie.genre.any(
+                (genre) => genre.toLowerCase().contains(lowerQuery),
+              );
+        }).toList();
 
     // Kullanıcı arama - kullanıcı adı, tam ad
-    _filteredUsers = _allUsers.where((user) {
-      return user.username.toLowerCase().contains(lowerQuery) ||
-             user.fullName.toLowerCase().contains(lowerQuery);
-    }).toList();
+    _filteredUsers =
+        _allUsers.where((user) {
+          return user.username.toLowerCase().contains(lowerQuery) ||
+              user.fullName.toLowerCase().contains(lowerQuery);
+        }).toList();
 
     // Sonuçları relevansa göre sırala
     _sortSearchResults(lowerQuery);
@@ -117,18 +123,18 @@ class _SearchViewState extends State<SearchView> with TickerProviderStateMixin {
     _filteredMovies.sort((a, b) {
       final aTitle = a.title.toLowerCase();
       final bTitle = b.title.toLowerCase();
-      
+
       // Tam eşleşme önce
       if (aTitle == query) return -1;
       if (bTitle == query) return 1;
-      
+
       // Başlangıçta eşleşen önce
       final aStartsWith = aTitle.startsWith(query);
       final bStartsWith = bTitle.startsWith(query);
-      
+
       if (aStartsWith && !bStartsWith) return -1;
       if (!aStartsWith && bStartsWith) return 1;
-      
+
       // Alfabetik sıralama
       return aTitle.compareTo(bTitle);
     });
@@ -137,18 +143,18 @@ class _SearchViewState extends State<SearchView> with TickerProviderStateMixin {
     _filteredUsers.sort((a, b) {
       final aUsername = a.username.toLowerCase();
       final bUsername = b.username.toLowerCase();
-      
+
       // Tam eşleşme önce
       if (aUsername == query) return -1;
       if (bUsername == query) return 1;
-      
+
       // Başlangıçta eşleşen önce
       final aStartsWith = aUsername.startsWith(query);
       final bStartsWith = bUsername.startsWith(query);
-      
+
       if (aStartsWith && !bStartsWith) return -1;
       if (!aStartsWith && bStartsWith) return 1;
-      
+
       // Alfabetik sıralama
       return aUsername.compareTo(bUsername);
     });
@@ -158,20 +164,23 @@ class _SearchViewState extends State<SearchView> with TickerProviderStateMixin {
     showDialog(
       context: context,
       barrierDismissible: true,
-      builder: (context) => MovieDetailModal(
-        movie: movie,
-        profileService: _profileService,
-        onAddToFavorites: (movie) => _addToFavorites(movie),
-        onAddToWatchlist: (movie) => _addToWatchlist(movie),
-      ),
+      builder:
+          (context) => MovieDetailModal(
+            movie: movie,
+            profileService: _profileService,
+            onAddToFavorites: (movie) => _addToFavorites(movie),
+            onAddToWatchlist: (movie) => _addToWatchlist(movie),
+          ),
     );
   }
 
   void _navigateToUserProfile(UserProfile user) {
-    Navigator.pushNamed(
+    Navigator.push(
       context,
-      '/public_profile',
-      arguments: user.username,
+      MaterialPageRoute(
+        builder:
+            (context) => PublicProfileView(username: user.username, user: user),
+      ),
     );
   }
 
@@ -233,33 +242,38 @@ class _SearchViewState extends State<SearchView> with TickerProviderStateMixin {
               hintText: 'Film veya kullanıcı ara...',
               hintStyle: TextStyle(color: AppTheme.secondaryGrey),
               prefixIcon: Icon(Icons.search, color: AppTheme.secondaryGrey),
-              suffixIcon: _searchController.text.isNotEmpty
-                  ? IconButton(
-                      icon: Icon(Icons.clear, color: AppTheme.secondaryGrey),
-                      onPressed: () {
-                        _searchController.clear();
-                        _performSearch('');
-                      },
-                    )
-                  : null,
+              suffixIcon:
+                  _searchController.text.isNotEmpty
+                      ? IconButton(
+                        icon: Icon(Icons.clear, color: AppTheme.secondaryGrey),
+                        onPressed: () {
+                          _searchController.clear();
+                          _performSearch('');
+                        },
+                      )
+                      : null,
               border: InputBorder.none,
-              contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 12,
+              ),
             ),
             style: TextStyle(color: AppTheme.darkGrey),
           ),
         ),
-        bottom: _currentQuery.isNotEmpty
-            ? TabBar(
-                controller: _tabController,
-                indicatorColor: Colors.white,
-                labelColor: Colors.white,
-                unselectedLabelColor: Colors.white.withOpacity(0.7),
-                tabs: [
-                  Tab(text: 'Filmler (${_filteredMovies.length})'),
-                  Tab(text: 'Kullanıcılar (${_filteredUsers.length})'),
-                ],
-              )
-            : null,
+        bottom:
+            _currentQuery.isNotEmpty
+                ? TabBar(
+                  controller: _tabController,
+                  indicatorColor: Colors.white,
+                  labelColor: Colors.white,
+                  unselectedLabelColor: Colors.white.withOpacity(0.7),
+                  tabs: [
+                    Tab(text: 'Filmler (${_filteredMovies.length})'),
+                    Tab(text: 'Kullanıcılar (${_filteredUsers.length})'),
+                  ],
+                )
+                : null,
       ),
       body: _buildBody(),
     );
@@ -288,10 +302,7 @@ class _SearchViewState extends State<SearchView> with TickerProviderStateMixin {
 
     return TabBarView(
       controller: _tabController,
-      children: [
-        _buildMoviesTab(),
-        _buildUsersTab(),
-      ],
+      children: [_buildMoviesTab(), _buildUsersTab()],
     );
   }
 
@@ -300,26 +311,16 @@ class _SearchViewState extends State<SearchView> with TickerProviderStateMixin {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.search,
-            size: 80,
-            color: AppTheme.secondaryGrey,
-          ),
+          Icon(Icons.search, size: 80, color: AppTheme.secondaryGrey),
           const SizedBox(height: 16),
           Text(
             'Film veya kullanıcı aramaya başlayın',
-            style: TextStyle(
-              fontSize: 18,
-              color: AppTheme.secondaryGrey,
-            ),
+            style: TextStyle(fontSize: 18, color: AppTheme.secondaryGrey),
           ),
           const SizedBox(height: 8),
           Text(
             'Film adı, yönetmen, oyuncu veya kullanıcı adı arayabilirsiniz',
-            style: TextStyle(
-              fontSize: 14,
-              color: AppTheme.secondaryGrey,
-            ),
+            style: TextStyle(fontSize: 14, color: AppTheme.secondaryGrey),
             textAlign: TextAlign.center,
           ),
         ],
@@ -332,26 +333,16 @@ class _SearchViewState extends State<SearchView> with TickerProviderStateMixin {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.search_off,
-            size: 80,
-            color: AppTheme.secondaryGrey,
-          ),
+          Icon(Icons.search_off, size: 80, color: AppTheme.secondaryGrey),
           const SizedBox(height: 16),
           Text(
             'Sonuç bulunamadı',
-            style: TextStyle(
-              fontSize: 18,
-              color: AppTheme.secondaryGrey,
-            ),
+            style: TextStyle(fontSize: 18, color: AppTheme.secondaryGrey),
           ),
           const SizedBox(height: 8),
           Text(
             '"$_currentQuery" için hiçbir sonuç bulunamadı',
-            style: TextStyle(
-              fontSize: 14,
-              color: AppTheme.secondaryGrey,
-            ),
+            style: TextStyle(fontSize: 14, color: AppTheme.secondaryGrey),
             textAlign: TextAlign.center,
           ),
         ],
@@ -393,55 +384,61 @@ class _SearchViewState extends State<SearchView> with TickerProviderStateMixin {
             borderRadius: BorderRadius.circular(8),
             color: AppTheme.secondaryGrey.withOpacity(0.3),
           ),
-          child: movie.posterUrl.isNotEmpty
-              ? ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Image.network(
-                    movie.posterUrl,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(8),
-                          gradient: LinearGradient(
-                            colors: [
-                              AppTheme.getGenreColor(
-                                movie.genre.isNotEmpty ? movie.genre.first : 'Unknown',
-                              ),
-                              AppTheme.getGenreColor(
-                                movie.genre.isNotEmpty ? movie.genre.first : 'Unknown',
-                              ).withOpacity(0.7),
-                            ],
-                          ),
-                        ),
-                        child: const Icon(Icons.movie, color: Colors.white),
-                      );
-                    },
-                  ),
-                )
-              : Container(
-                  decoration: BoxDecoration(
+          child:
+              movie.posterUrl.isNotEmpty
+                  ? ClipRRect(
                     borderRadius: BorderRadius.circular(8),
-                    gradient: LinearGradient(
-                      colors: [
-                        AppTheme.getGenreColor(
-                          movie.genre.isNotEmpty ? movie.genre.first : 'Unknown',
-                        ),
-                        AppTheme.getGenreColor(
-                          movie.genre.isNotEmpty ? movie.genre.first : 'Unknown',
-                        ).withOpacity(0.7),
-                      ],
+                    child: Image.network(
+                      movie.posterUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(8),
+                            gradient: LinearGradient(
+                              colors: [
+                                AppTheme.getGenreColor(
+                                  movie.genre.isNotEmpty
+                                      ? movie.genre.first
+                                      : 'Unknown',
+                                ),
+                                AppTheme.getGenreColor(
+                                  movie.genre.isNotEmpty
+                                      ? movie.genre.first
+                                      : 'Unknown',
+                                ).withOpacity(0.7),
+                              ],
+                            ),
+                          ),
+                          child: const Icon(Icons.movie, color: Colors.white),
+                        );
+                      },
                     ),
+                  )
+                  : Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      gradient: LinearGradient(
+                        colors: [
+                          AppTheme.getGenreColor(
+                            movie.genre.isNotEmpty
+                                ? movie.genre.first
+                                : 'Unknown',
+                          ),
+                          AppTheme.getGenreColor(
+                            movie.genre.isNotEmpty
+                                ? movie.genre.first
+                                : 'Unknown',
+                          ).withOpacity(0.7),
+                        ],
+                      ),
+                    ),
+                    child: const Icon(Icons.movie, color: Colors.white),
                   ),
-                  child: const Icon(Icons.movie, color: Colors.white),
-                ),
         ),
         title: Text(
           movie.title,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-          ),
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
         ),
@@ -451,18 +448,12 @@ class _SearchViewState extends State<SearchView> with TickerProviderStateMixin {
             const SizedBox(height: 4),
             Text(
               '${movie.year} • ${movie.director}',
-              style: TextStyle(
-                color: AppTheme.secondaryGrey,
-                fontSize: 14,
-              ),
+              style: TextStyle(color: AppTheme.secondaryGrey, fontSize: 14),
             ),
             const SizedBox(height: 2),
             Text(
               movie.genre.take(3).join(', '),
-              style: TextStyle(
-                color: AppTheme.primaryRed,
-                fontSize: 12,
-              ),
+              style: TextStyle(color: AppTheme.primaryRed, fontSize: 12),
             ),
           ],
         ),
@@ -484,26 +475,25 @@ class _SearchViewState extends State<SearchView> with TickerProviderStateMixin {
         leading: CircleAvatar(
           radius: 30,
           backgroundColor: AppTheme.primaryRed,
-          backgroundImage: user.profileImageUrl.isNotEmpty
-              ? NetworkImage(user.profileImageUrl)
-              : null,
-          child: user.profileImageUrl.isEmpty
-              ? Text(
-                  user.username.substring(0, 1).toUpperCase(),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 20,
-                  ),
-                )
-              : null,
+          backgroundImage:
+              user.profileImageUrl.isNotEmpty
+                  ? NetworkImage(user.profileImageUrl)
+                  : null,
+          child:
+              user.profileImageUrl.isEmpty
+                  ? Text(
+                    user.username.substring(0, 1).toUpperCase(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 20,
+                    ),
+                  )
+                  : null,
         ),
         title: Text(
           user.username,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-          ),
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -511,19 +501,13 @@ class _SearchViewState extends State<SearchView> with TickerProviderStateMixin {
             const SizedBox(height: 4),
             Text(
               user.fullName,
-              style: TextStyle(
-                color: AppTheme.secondaryGrey,
-                fontSize: 14,
-              ),
+              style: TextStyle(color: AppTheme.secondaryGrey, fontSize: 14),
             ),
             if (user.bio.isNotEmpty) ...[
               const SizedBox(height: 2),
               Text(
                 user.bio,
-                style: TextStyle(
-                  color: AppTheme.secondaryGrey,
-                  fontSize: 12,
-                ),
+                style: TextStyle(color: AppTheme.secondaryGrey, fontSize: 12),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),

@@ -6,9 +6,11 @@ import '../theme/app_theme.dart';
 import '../widgets/movie_detail_modal.dart';
 
 class PublicProfileView extends StatefulWidget {
-  final String username;
+  final String? username;
+  final UserProfile? user;
 
-  const PublicProfileView({Key? key, required this.username}) : super(key: key);
+  const PublicProfileView({Key? key, this.username, this.user})
+    : super(key: key);
 
   @override
   State<PublicProfileView> createState() => _PublicProfileViewState();
@@ -35,18 +37,35 @@ class _PublicProfileViewState extends State<PublicProfileView> {
     setState(() => _isLoading = true);
 
     try {
-      final profile = await _profileService.getUserProfile(widget.username);
-      if (profile != null) {
-        _userProfile = profile;
+      // Eğer user objesi direkt geldiyse onu kullan
+      if (widget.user != null) {
+        _userProfile = widget.user;
+        final username = widget.user!.username;
 
         // Kullanıcının verilerini yükle
         await Future.wait([
-          _loadUserFavorites(),
-          _loadUserWatchlist(),
-          _loadUserComments(),
+          _loadUserFavorites(username),
+          _loadUserWatchlist(username),
+          _loadUserComments(username),
         ]);
+      }
+      // Eğer sadece username geldiyse profili yükle
+      else if (widget.username != null) {
+        final profile = await _profileService.getUserProfile(widget.username!);
+        if (profile != null) {
+          _userProfile = profile;
+
+          // Kullanıcının verilerini yükle
+          await Future.wait([
+            _loadUserFavorites(widget.username!),
+            _loadUserWatchlist(widget.username!),
+            _loadUserComments(widget.username!),
+          ]);
+        } else {
+          _error = 'Kullanıcı bulunamadı';
+        }
       } else {
-        _error = 'Kullanıcı bulunamadı';
+        _error = 'Geçersiz kullanıcı bilgisi';
       }
     } catch (e) {
       _error = 'Profil yüklenirken hata oluştu: $e';
@@ -55,29 +74,25 @@ class _PublicProfileViewState extends State<PublicProfileView> {
     }
   }
 
-  Future<void> _loadUserFavorites() async {
+  Future<void> _loadUserFavorites(String username) async {
     try {
-      _userFavorites = await _profileService.getUserPublicFavorites(
-        widget.username,
-      );
+      _userFavorites = await _profileService.getUserPublicFavorites(username);
     } catch (e) {
       print('Favori filmler yüklenirken hata: $e');
     }
   }
 
-  Future<void> _loadUserWatchlist() async {
+  Future<void> _loadUserWatchlist(String username) async {
     try {
-      _userWatchlist = await _profileService.getUserPublicWatchlist(
-        widget.username,
-      );
+      _userWatchlist = await _profileService.getUserPublicWatchlist(username);
     } catch (e) {
       print('İzleme listesi yüklenirken hata: $e');
     }
   }
 
-  Future<void> _loadUserComments() async {
+  Future<void> _loadUserComments(String username) async {
     try {
-      _userComments = await _profileService.getUserComments(widget.username);
+      _userComments = await _profileService.getUserComments(username);
     } catch (e) {
       print('Yorumlar yüklenirken hata: $e');
     }
@@ -146,65 +161,108 @@ class _PublicProfileViewState extends State<PublicProfileView> {
         ),
       ),
       child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            children: [
-              // Profil fotoğrafı
-              CircleAvatar(
-                radius: 50,
-                backgroundColor: Colors.white,
-                backgroundImage:
-                    _userProfile!.profileImageUrl.isNotEmpty
-                        ? NetworkImage(_userProfile!.profileImageUrl)
-                        : null,
-                child:
-                    _userProfile!.profileImageUrl.isEmpty
-                        ? Text(
-                          _userProfile!.username.substring(0, 1).toUpperCase(),
-                          style: TextStyle(
-                            fontSize: 48,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.primaryRed,
-                          ),
-                        )
-                        : null,
-              ),
-              const SizedBox(height: 16),
-
-              // Kullanıcı adı
-              Text(
-                _userProfile!.username,
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-
-              const SizedBox(height: 8),
-
-              // Full name (eğer farklıysa)
-              if (_userProfile!.fullName.isNotEmpty &&
-                  _userProfile!.fullName != _userProfile!.username)
-                Text(
-                  _userProfile!.fullName,
-                  style: const TextStyle(fontSize: 16, color: Colors.white70),
-                ),
-
-              const SizedBox(height: 16),
-
-              // İstatistikler
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        child: Column(
+          children: [
+            // AppBar benzeri üst kısım
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
                 children: [
-                  _buildStatCard('Yorum', _userComments.length.toString()),
-                  _buildStatCard('Film', _userWatchlist.length.toString()),
-                  _buildStatCard('Favori', _userFavorites.length.toString()),
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                  Expanded(
+                    child: Text(
+                      _userProfile!.username,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  const SizedBox(
+                    width: 48,
+                  ), // IconButton genişliği kadar boşluk
                 ],
               ),
-            ],
-          ),
+            ),
+
+            // Profil içeriği
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+              child: Column(
+                children: [
+                  // Profil fotoğrafı
+                  CircleAvatar(
+                    radius: 50,
+                    backgroundColor: Colors.white,
+                    backgroundImage:
+                        _userProfile!.profileImageUrl.isNotEmpty
+                            ? NetworkImage(_userProfile!.profileImageUrl)
+                            : null,
+                    child:
+                        _userProfile!.profileImageUrl.isEmpty
+                            ? Text(
+                              _userProfile!.username
+                                  .substring(0, 1)
+                                  .toUpperCase(),
+                              style: TextStyle(
+                                fontSize: 48,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.primaryRed,
+                              ),
+                            )
+                            : null,
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Full name (eğer farklıysa)
+                  if (_userProfile!.fullName.isNotEmpty &&
+                      _userProfile!.fullName != _userProfile!.username)
+                    Text(
+                      _userProfile!.fullName,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        color: Colors.white70,
+                      ),
+                    ),
+
+                  // Bio (varsa)
+                  if (_userProfile!.bio.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      _userProfile!.bio,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Colors.white70,
+                      ),
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+
+                  const SizedBox(height: 16),
+
+                  // İstatistikler
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _buildStatCard('Yorum', _userComments.length.toString()),
+                      _buildStatCard('Film', _userWatchlist.length.toString()),
+                      _buildStatCard(
+                        'Favori',
+                        _userFavorites.length.toString(),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -239,9 +297,39 @@ class _PublicProfileViewState extends State<PublicProfileView> {
 
   @override
   Widget build(BuildContext context) {
+    // Route arguments'ını al
+    if (_userProfile == null &&
+        widget.username == null &&
+        widget.user == null) {
+      final args = ModalRoute.of(context)?.settings.arguments;
+      if (args is Map<String, dynamic>) {
+        // Arguments Map olarak geldi
+        final username = args['username'] as String?;
+        final user = args['user'] as UserProfile?;
+
+        if (user != null) {
+          _userProfile = user;
+        } else if (username != null) {
+          // Username ile profil yükle
+          _loadUserProfile();
+        }
+      } else if (args is String) {
+        // Arguments String olarak geldi (eski versiyon)
+        _loadUserProfile();
+      }
+    }
+
     if (_isLoading) {
       return Scaffold(
         backgroundColor: AppTheme.primaryRed,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
         body: const Center(
           child: CircularProgressIndicator(color: Colors.white),
         ),
@@ -251,7 +339,14 @@ class _PublicProfileViewState extends State<PublicProfileView> {
     if (_error != null) {
       return Scaffold(
         backgroundColor: AppTheme.primaryRed,
-        appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0),
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,

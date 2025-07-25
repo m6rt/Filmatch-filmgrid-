@@ -1,4 +1,5 @@
 import 'package:filmgrid/firebase_options.dart';
+import 'package:filmgrid/models/user_profile.dart';
 import 'package:filmgrid/services/auth_page.dart';
 import 'package:filmgrid/views/comments_view.dart';
 import 'package:filmgrid/views/login_view.dart';
@@ -121,11 +122,23 @@ class MyApp extends StatelessWidget {
           }
         },
         '/public_profile': (context) {
-          final args =
-              ModalRoute.of(context)?.settings.arguments
-                  as Map<String, dynamic>?;
-          final username = args?['username'] as String? ?? '';
-          return PublicProfileView(username: username);
+          final args = ModalRoute.of(context)?.settings.arguments;
+
+          if (args is Map<String, dynamic>) {
+            return PublicProfileView(
+              username: args['username'] as String?,
+              user: args['user'] as UserProfile?,
+            );
+          } else if (args is String) {
+            // Backward compatibility için
+            return PublicProfileView(username: args);
+          } else {
+            // Hatalı argument
+            return Scaffold(
+              appBar: AppBar(title: Text('Hata')),
+              body: Center(child: Text('Geçersiz kullanıcı bilgisi')),
+            );
+          }
         },
       },
       debugShowCheckedModeBanner: false,
