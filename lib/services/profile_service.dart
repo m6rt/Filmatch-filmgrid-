@@ -23,31 +23,51 @@ class ProfileService {
   User? get currentUser => _auth.currentUser;
 
   // Kullanıcı profili getir
-  Future<UserProfile?> getUserProfile() async {
-    final user = currentUser;
-    if (user == null) return null;
-
+  Future<UserProfile?> getUserProfile([String? username]) async {
     try {
-      final doc = await _firestore.collection('users').doc(user.uid).get();
+      if (username != null) {
+        // Public profile için username ile arama
+        final querySnapshot =
+            await _firestore
+                .collection('users')
+                .where('username', isEqualTo: username)
+                .limit(1)
+                .get();
 
-      if (doc.exists) {
-        return UserProfile.fromFirestore(doc.data()!, user.uid);
+        if (querySnapshot.docs.isEmpty) {
+          return null;
+        }
+
+        final userData = querySnapshot.docs.first.data();
+        final docId = querySnapshot.docs.first.id;
+
+        return UserProfile.fromFirestore(userData, docId);
       } else {
-        // İlk kez giriş yapan kullanıcı için profil oluştur
-        final newProfile = UserProfile(
-          uid: user.uid,
-          username: user.displayName ?? 'User${user.uid.substring(0, 6)}',
-          email: user.email ?? '',
-          profilePictureURL: user.photoURL ?? '',
-          createdAt: DateTime.now(),
-          lastUpdated: DateTime.now(),
-        );
+        // Kendi profili için mevcut kullanıcı
+        final user = currentUser;
+        if (user == null) return null;
 
-        await _firestore
-            .collection('users')
-            .doc(user.uid)
-            .set(newProfile.toFirestore());
-        return newProfile;
+        final doc = await _firestore.collection('users').doc(user.uid).get();
+
+        if (doc.exists) {
+          return UserProfile.fromFirestore(doc.data()!, user.uid);
+        } else {
+          // İlk kez giriş yapan kullanıcı için profil oluştur
+          final newProfile = UserProfile(
+            uid: user.uid,
+            username: user.displayName ?? 'User${user.uid.substring(0, 6)}',
+            email: user.email ?? '',
+            profileImageUrl: user.photoURL ?? '',
+            createdAt: DateTime.now(),
+            lastUpdated: DateTime.now(),
+          );
+
+          await _firestore
+              .collection('users')
+              .doc(user.uid)
+              .set(newProfile.toFirestore());
+          return newProfile;
+        }
       }
     } catch (e) {
       print('Error getting user profile: $e');
@@ -488,6 +508,60 @@ class ProfileService {
       return movies;
     } catch (e) {
       print('Error getting user public favorites: $e');
+      return [];
+    }
+  }
+
+  // Tüm kullanıcıları getir
+  Future<List<UserProfile>> getAllUsers() async {
+    try {
+      final querySnapshot = await _firestore.collection('users').get();
+
+      List<UserProfile> users = [];
+
+      for (var doc in querySnapshot.docs) {
+        try {
+          final userData = doc.data();
+          final docId = doc.id;
+
+          // UserProfile.fromFirestore kullanarak oluştur
+          final user = UserProfile.fromFirestore(userData, docId);
+          users.add(user);
+        } catch (e) {
+          print('Kullanıcı verisi parse hatası: $e');
+        }
+      }
+
+      return users;
+    } catch (e) {
+      print('Kullanıcılar yüklenirken hata: $e');
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getUserComments(String username) async {
+    try {
+      final querySnapshot =
+          await _firestore
+              .collection('comments')
+              .where('username', isEqualTo: username)
+              .orderBy('timestamp', descending: true)
+              .limit(50)
+              .get();
+
+      return querySnapshot.docs.map((doc) {
+        final data = doc.data();
+        return {
+          'id': doc.id,
+          'comment': data['comment'] ?? '',
+          'rating': data['rating'] ?? 0,
+          'date': data['date'] ?? '',
+          'movieId': data['movieId'] ?? '',
+          'isSpoiler': data['isSpoiler'] ?? false,
+        };
+      }).toList();
+    } catch (e) {
+      print('Error getting user comments: $e');
       return [];
     }
   }

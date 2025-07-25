@@ -1,5 +1,3 @@
-import 'package:filmgrid/services/batch_optimized_movie_service.dart';
-import 'package:filmgrid/widgets/movie_detail_modal.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -11,10 +9,9 @@ import '../models/movie.dart';
 import '../services/profile_service.dart';
 import '../services/auth_service.dart';
 import '../services/comments_service.dart';
-import '../widgets/optimized_video_player.dart';
+import '../services/batch_optimized_movie_service.dart';
 import '../theme/app_theme.dart';
-import 'package:flutter/services.dart';
-import 'dart:async';
+import '../widgets/movie_detail_modal.dart';
 
 class ProfileView extends StatefulWidget {
   const ProfileView({super.key});
@@ -351,9 +348,9 @@ class _ProfileViewState extends State<ProfileView>
         });
 
         // Load favorite movies
-        if (profile.favoriteMovieIds.isNotEmpty) {
+        if (profile.favoriteMovies.isNotEmpty) {
           final movies = await _profileService.getFavoriteMovies(
-            profile.favoriteMovieIds,
+            profile.favoriteMovies,
           );
           setState(() => _favoriteMovies = movies);
         } else {
@@ -361,9 +358,9 @@ class _ProfileViewState extends State<ProfileView>
         }
 
         // Load watchlist movies
-        if (profile.watchlistMovieIds.isNotEmpty) {
+        if (profile.watchlist.isNotEmpty) {
           final watchlistMovies = await _profileService.getWatchlistMovies(
-            profile.watchlistMovieIds,
+            profile.watchlist,
           );
           setState(() => _watchlistMovies = watchlistMovies);
         } else {
@@ -467,7 +464,7 @@ class _ProfileViewState extends State<ProfileView>
       final imageUrl = await _profileService.pickAndUploadProfileImage();
       if (imageUrl != null) {
         final updatedProfile = _userProfile!.copyWith(
-          profilePictureURL: imageUrl,
+          profileImageUrl: imageUrl,
         );
 
         final success = await _profileService.updateProfile(updatedProfile);
@@ -750,12 +747,9 @@ class _ProfileViewState extends State<ProfileView>
           ),
           child: ClipOval(
             child:
-                _userProfile!
-                        .profilePictureURL
-                        .isNotEmpty // profileImageUrl değil profilePictureURL
+                _userProfile!.profileImageUrl.isNotEmpty
                     ? Image.network(
-                      _userProfile!
-                          .profilePictureURL, // profileImageUrl değil profilePictureURL
+                      _userProfile!.profileImageUrl,
                       fit: BoxFit.cover,
                       width: imageSize,
                       height: imageSize,
@@ -830,6 +824,13 @@ class _ProfileViewState extends State<ProfileView>
           ),
           textAlign: TextAlign.center,
         ),
+
+        if (_userProfile!.fullName.isNotEmpty &&
+            _userProfile!.fullName != _userProfile!.username)
+          Text(
+            _userProfile!.fullName,
+            style: const TextStyle(fontSize: 16, color: Colors.white70),
+          ),
 
         SizedBox(height: spacing),
 

@@ -1,129 +1,134 @@
 class UserProfile {
   final String uid;
   final String username;
-  final String displayName;
   final String email;
-  final String profilePictureURL;
+  final String fullName;
+  final String bio;
+  final String profileImageUrl;
+   final List<String> favoriteMovies;
+  final List<String> watchlist;
+  final List<String> followers;
+  final List<String> following;
   final DateTime createdAt;
   final DateTime lastUpdated;
-  final List<String> favoriteMovieIds;
-  final List<String> watchlistMovieIds;
+  final bool isFavoritesPublic;
   final bool isWatchlistPublic;
-  final bool isCommentsPublic;
-  final bool isFavoritesPublic; // Yeni field
 
   UserProfile({
-    required this.uid,
+    this.uid = '',
     required this.username,
-    this.displayName = '',
-    required this.email,
-    this.profilePictureURL = '',
-    required this.createdAt,
-    required this.lastUpdated,
-    this.favoriteMovieIds = const [],
-    this.watchlistMovieIds = const [],
+    this.email = '',
+    this.fullName = '',
+    this.bio = '',
+    this.profileImageUrl = '',
+    this.favoriteMovies = const [],
+    this.watchlist = const [],
+    this.followers = const [],
+    this.following = const [],
+    DateTime? createdAt,
+    DateTime? lastUpdated,
+    this.isFavoritesPublic = true,
     this.isWatchlistPublic = true,
-    this.isCommentsPublic = true,
-    this.isFavoritesPublic = true, // Varsayılan true
-  });
+  }) : createdAt = createdAt ?? DateTime.now(),
+       lastUpdated = lastUpdated ?? DateTime.now();
 
+  // Firestore'dan UserProfile oluştur
   factory UserProfile.fromFirestore(Map<String, dynamic> data, String uid) {
     return UserProfile(
       uid: uid,
       username: data['username'] ?? '',
-      displayName: data['displayName'] ?? '',
       email: data['email'] ?? '',
-      profilePictureURL: data['profilePictureURL'] ?? '',
-      createdAt: DateTime.fromMillisecondsSinceEpoch(data['createdAt'] ?? 0),
-      lastUpdated: DateTime.fromMillisecondsSinceEpoch(
-        data['lastUpdated'] ?? 0,
+      fullName: data['fullName'] ?? data['displayName'] ?? '',
+      bio: data['bio'] ?? '',
+      profileImageUrl:
+          data['profileImageUrl'] ?? data['profilePictureURL'] ?? '',
+      favoriteMovies: List<String>.from(
+        data['favoriteMovieIds'] ?? data['favoriteMovies'] ?? [],
       ),
-      favoriteMovieIds: List<String>.from(data['favoriteMovieIds'] ?? []),
-      watchlistMovieIds: List<String>.from(data['watchlistMovieIds'] ?? []),
+      watchlist: List<String>.from(
+        data['watchlistMovieIds'] ?? data['watchlist'] ?? [],
+      ),
+      followers: List<String>.from(data['followers'] ?? []),
+      following: List<String>.from(data['following'] ?? []),
+      createdAt:
+          data['createdAt'] != null
+              ? (data['createdAt'] is int
+                  ? DateTime.fromMillisecondsSinceEpoch(data['createdAt'])
+                  : DateTime.tryParse(data['createdAt'].toString()) ??
+                      DateTime.now())
+              : DateTime.now(),
+      lastUpdated:
+          data['lastUpdated'] != null
+              ? (data['lastUpdated'] is int
+                  ? DateTime.fromMillisecondsSinceEpoch(data['lastUpdated'])
+                  : DateTime.tryParse(data['lastUpdated'].toString()) ??
+                      DateTime.now())
+              : DateTime.now(),
+      isFavoritesPublic: data['isFavoritesPublic'] ?? true,
       isWatchlistPublic: data['isWatchlistPublic'] ?? true,
-      isCommentsPublic: data['isCommentsPublic'] ?? true,
-      isFavoritesPublic: data['isFavoritesPublic'] ?? true, // Yeni field
     );
   }
 
-  factory UserProfile.fromMap(Map<String, dynamic> map) {
-    return UserProfile(
-      uid: map['uid'] ?? '',
-      username: map['username'] ?? '',
-      displayName: map['displayName'] ?? '',
-      email: map['email'] ?? '',
-      profilePictureURL: map['profilePictureURL'] ?? '',
-      createdAt: DateTime.fromMillisecondsSinceEpoch(map['createdAt'] ?? 0),
-      lastUpdated: DateTime.fromMillisecondsSinceEpoch(map['lastUpdated'] ?? 0),
-      favoriteMovieIds: List<String>.from(map['favoriteMovieIds'] ?? []),
-      watchlistMovieIds: List<String>.from(map['watchlistMovieIds'] ?? []),
-      isWatchlistPublic: map['isWatchlistPublic'] ?? true,
-      isCommentsPublic: map['isCommentsPublic'] ?? true,
-      isFavoritesPublic: map['isFavoritesPublic'] ?? true, // Yeni field
-    );
-  }
-
+  // Firestore'a gönderilecek format
   Map<String, dynamic> toFirestore() {
     return {
       'username': username,
-      'displayName': displayName,
       'email': email,
-      'profilePictureURL': profilePictureURL,
+      'fullName': fullName,
+      'displayName': fullName, // Eski uyumluluk
+      'bio': bio,
+      'profileImageUrl': profileImageUrl,
+      'profilePictureURL': profileImageUrl, // Eski uyumluluk
+      'favoriteMovieIds': favoriteMovies,
+      'favoriteMovies': favoriteMovies, // Eski uyumluluk
+      'watchlistMovieIds': watchlist,
+      'watchlist': watchlist, // Eski uyumluluk
+      'followers': followers,
+      'following': following,
       'createdAt': createdAt.millisecondsSinceEpoch,
       'lastUpdated': lastUpdated.millisecondsSinceEpoch,
-      'favoriteMovieIds': favoriteMovieIds,
-      'watchlistMovieIds': watchlistMovieIds,
+      'isFavoritesPublic': isFavoritesPublic,
       'isWatchlistPublic': isWatchlistPublic,
-      'isCommentsPublic': isCommentsPublic,
-      'isFavoritesPublic': isFavoritesPublic, // Yeni field
     };
   }
 
-  Map<String, dynamic> toMap() {
-    return {
-      'uid': uid,
-      'username': username,
-      'displayName': displayName,
-      'email': email,
-      'profilePictureURL': profilePictureURL,
-      'createdAt': createdAt.millisecondsSinceEpoch,
-      'lastUpdated': lastUpdated.millisecondsSinceEpoch,
-      'favoriteMovieIds': favoriteMovieIds,
-      'watchlistMovieIds': watchlistMovieIds,
-      'isWatchlistPublic': isWatchlistPublic,
-      'isCommentsPublic': isCommentsPublic,
-      'isFavoritesPublic': isFavoritesPublic, // Yeni field
-    };
-  }
-
+  // Copy with metodu
   UserProfile copyWith({
     String? uid,
     String? username,
-    String? displayName,
     String? email,
-    String? profilePictureURL,
+    String? fullName,
+    String? bio,
+    String? profileImageUrl,
+    List<String>? favoriteMovies,
+    List<String>? watchlist,
+    List<String>? followers,
+    List<String>? following,
     DateTime? createdAt,
     DateTime? lastUpdated,
-    List<String>? favoriteMovieIds,
-    List<String>? watchlistMovieIds,
+    bool? isFavoritesPublic,
     bool? isWatchlistPublic,
-    bool? isCommentsPublic,
-    bool? isFavoritesPublic, // Yeni field
   }) {
     return UserProfile(
       uid: uid ?? this.uid,
       username: username ?? this.username,
-      displayName: displayName ?? this.displayName,
       email: email ?? this.email,
-      profilePictureURL: profilePictureURL ?? this.profilePictureURL,
+      fullName: fullName ?? this.fullName,
+      bio: bio ?? this.bio,
+      profileImageUrl: profileImageUrl ?? this.profileImageUrl,
+      favoriteMovies: favoriteMovies ?? this.favoriteMovies,
+      watchlist: watchlist ?? this.watchlist,
+      followers: followers ?? this.followers,
+      following: following ?? this.following,
       createdAt: createdAt ?? this.createdAt,
       lastUpdated: lastUpdated ?? this.lastUpdated,
-      favoriteMovieIds: favoriteMovieIds ?? this.favoriteMovieIds,
-      watchlistMovieIds: watchlistMovieIds ?? this.watchlistMovieIds,
+      isFavoritesPublic: isFavoritesPublic ?? this.isFavoritesPublic,
       isWatchlistPublic: isWatchlistPublic ?? this.isWatchlistPublic,
-      isCommentsPublic: isCommentsPublic ?? this.isCommentsPublic,
-      isFavoritesPublic:
-          isFavoritesPublic ?? this.isFavoritesPublic, // Yeni field
     );
+  }
+
+  @override
+  String toString() {
+    return 'UserProfile{uid: $uid, username: $username, fullName: $fullName}';
   }
 }

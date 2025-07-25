@@ -705,14 +705,6 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
             ),
           ),
           Semantics(
-            label: SwipeViewConstants.searchLabel,
-            child: IconButton(
-              onPressed: () => _showSampleDialog('Search'),
-              icon: Icon(Icons.search),
-              tooltip: SwipeViewConstants.searchLabel,
-            ),
-          ),
-          Semantics(
             label: SwipeViewConstants.profileLabel,
             child: IconButton(
               onPressed: () async {

@@ -8,6 +8,7 @@ import '../theme/app_theme.dart';
 import '../widgets/optimized_video_player.dart';
 import 'package:flutter/services.dart';
 import '../widgets/movie_detail_modal.dart';
+import 'search_view.dart';
 
 class BrowseView extends StatefulWidget {
   const BrowseView({super.key});
@@ -209,9 +210,9 @@ class _BrowseViewState extends State<BrowseView> with TickerProviderStateMixin {
           IconButton(
             icon: const Icon(Icons.search),
             onPressed: () {
-              // TODO: Arama ekranı
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Arama özelliği yakında gelecek')),
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SearchView()),
               );
             },
           ),
