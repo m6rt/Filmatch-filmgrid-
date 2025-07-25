@@ -608,6 +608,7 @@ class _ProfileViewState extends State<ProfileView>
             icon: Icon(Icons.refresh, color: AppTheme.darkGrey),
             tooltip: 'Profili Yenile',
           ),
+          IconButton(onPressed: AuthService().logout, icon: Icon(Icons.logout)),
         ],
       ),
       body: Container(

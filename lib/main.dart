@@ -94,7 +94,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Film Grid',
       theme: ThemeData(primarySwatch: Colors.red, useMaterial3: false),
-      home: const SwipeView(),
+      home: const AuthPage(),
       routes: {
         '/login': (context) => const Loginview(),
         '/swipe': (context) => const SwipeView(),

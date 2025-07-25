@@ -2,6 +2,7 @@ import 'package:filmgrid/views/email_verification.dart';
 import 'package:filmgrid/views/login_view.dart';
 import 'package:filmgrid/views/logout.dart';
 import 'package:filmgrid/views/profile_view.dart';
+import 'package:filmgrid/views/swipe_view.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -28,7 +29,7 @@ class AuthPage extends StatelessWidget {
             // return EmailVerification();
             //}
             else {
-              return ProfileView();
+              return SwipeView();
             }
           } else {
             return Loginview();

@@ -448,4 +448,47 @@ class ProfileService {
       return [];
     }
   }
+
+  // Kullanıcının public favorilerini getir
+  Future<List<Movie>> getUserPublicFavorites(String username) async {
+    try {
+      final userProfile = await getUserProfileByUsername(username);
+      if (userProfile == null) return [];
+
+      // Privacy kontrolü
+      if (!userProfile.isFavoritesPublic) return [];
+
+      // User'ın favori filmlerini al
+      final favoritesSnapshot =
+          await _firestore
+              .collection('users')
+              .where('username', isEqualTo: username)
+              .limit(1)
+              .get();
+
+      if (favoritesSnapshot.docs.isEmpty) return [];
+
+      final userData = favoritesSnapshot.docs.first.data();
+      final favoriteIds = List<String>.from(userData['favoriteMovieIds'] ?? []);
+
+      // Movie detaylarını getir
+      final movies = <Movie>[];
+      for (final movieId in favoriteIds.take(20)) {
+        // Limit 20
+        try {
+          final movie = await _movieService.getMovieById(int.parse(movieId));
+          if (movie != null) {
+            movies.add(movie);
+          }
+        } catch (e) {
+          print('Error parsing movie ID $movieId: $e');
+        }
+      }
+
+      return movies;
+    } catch (e) {
+      print('Error getting user public favorites: $e');
+      return [];
+    }
+  }
 }

@@ -10,6 +10,7 @@ class UserProfile {
   final List<String> watchlistMovieIds;
   final bool isWatchlistPublic;
   final bool isCommentsPublic;
+  final bool isFavoritesPublic; // Yeni field
 
   UserProfile({
     required this.uid,
@@ -23,6 +24,7 @@ class UserProfile {
     this.watchlistMovieIds = const [],
     this.isWatchlistPublic = true,
     this.isCommentsPublic = true,
+    this.isFavoritesPublic = true, // Varsayılan true
   });
 
   factory UserProfile.fromFirestore(Map<String, dynamic> data, String uid) {
@@ -40,6 +42,7 @@ class UserProfile {
       watchlistMovieIds: List<String>.from(data['watchlistMovieIds'] ?? []),
       isWatchlistPublic: data['isWatchlistPublic'] ?? true,
       isCommentsPublic: data['isCommentsPublic'] ?? true,
+      isFavoritesPublic: data['isFavoritesPublic'] ?? true, // Yeni field
     );
   }
 
@@ -56,6 +59,7 @@ class UserProfile {
       watchlistMovieIds: List<String>.from(map['watchlistMovieIds'] ?? []),
       isWatchlistPublic: map['isWatchlistPublic'] ?? true,
       isCommentsPublic: map['isCommentsPublic'] ?? true,
+      isFavoritesPublic: map['isFavoritesPublic'] ?? true, // Yeni field
     );
   }
 
@@ -71,6 +75,7 @@ class UserProfile {
       'watchlistMovieIds': watchlistMovieIds,
       'isWatchlistPublic': isWatchlistPublic,
       'isCommentsPublic': isCommentsPublic,
+      'isFavoritesPublic': isFavoritesPublic, // Yeni field
     };
   }
 
@@ -87,6 +92,7 @@ class UserProfile {
       'watchlistMovieIds': watchlistMovieIds,
       'isWatchlistPublic': isWatchlistPublic,
       'isCommentsPublic': isCommentsPublic,
+      'isFavoritesPublic': isFavoritesPublic, // Yeni field
     };
   }
 
@@ -102,6 +108,7 @@ class UserProfile {
     List<String>? watchlistMovieIds,
     bool? isWatchlistPublic,
     bool? isCommentsPublic,
+    bool? isFavoritesPublic, // Yeni field
   }) {
     return UserProfile(
       uid: uid ?? this.uid,
@@ -115,6 +122,8 @@ class UserProfile {
       watchlistMovieIds: watchlistMovieIds ?? this.watchlistMovieIds,
       isWatchlistPublic: isWatchlistPublic ?? this.isWatchlistPublic,
       isCommentsPublic: isCommentsPublic ?? this.isCommentsPublic,
+      isFavoritesPublic:
+          isFavoritesPublic ?? this.isFavoritesPublic, // Yeni field
     );
   }
 }
