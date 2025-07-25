@@ -124,6 +124,29 @@ class CommentsService {
     }
   }
 
+  // Belirli bir kullanıcının tüm yorumlarını getir
+  Future<List<Map<String, dynamic>>> getUserComments(String username) async {
+    try {
+      final comments = await _databaseService.getUserComments(username);
+      return comments.map((comment) {
+        return {
+          'id': comment['id'],
+          'movieId': comment['movieId'],
+          'username': comment['username'],
+          'rating': comment['rating'],
+          'comment': comment['comment'],
+          'isSpoiler': comment['isSpoiler'] == 1,
+          'language': comment['language'] ?? 'TR',
+          'date': _formatDate(comment['createdAt']),
+          'createdAt': comment['createdAt'],
+        };
+      }).toList();
+    } catch (e) {
+      print('Error getting user comments: $e');
+      return [];
+    }
+  }
+
   String _formatDate(String isoDate) {
     try {
       final date = DateTime.parse(isoDate);

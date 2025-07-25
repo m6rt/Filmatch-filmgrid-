@@ -2,6 +2,7 @@ import 'package:filmgrid/firebase_options.dart';
 import 'package:filmgrid/services/auth_page.dart';
 import 'package:filmgrid/views/comments_view.dart';
 import 'package:filmgrid/views/login_view.dart';
+import 'package:filmgrid/views/public_profile_view.dart';
 import 'package:filmgrid/views/swipe_view.dart';
 import 'package:filmgrid/views/profile_view.dart';
 import 'package:filmgrid/views/browse_view.dart';
@@ -118,6 +119,13 @@ class MyApp extends StatelessWidget {
               body: const Center(child: Text('Geçersiz sayfa parametresi')),
             );
           }
+        },
+        '/public_profile': (context) {
+          final args =
+              ModalRoute.of(context)?.settings.arguments
+                  as Map<String, dynamic>?;
+          final username = args?['username'] as String? ?? '';
+          return PublicProfileView(username: username);
         },
       },
       debugShowCheckedModeBanner: false,

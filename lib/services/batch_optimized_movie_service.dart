@@ -49,6 +49,9 @@ class BatchOptimizedMovieService {
   bool _isInitialized = false;
   bool _isPreparingNextBatch = false;
 
+  // Cache
+  Map<int, Movie> _movieCache = {};
+
   // Getters
   bool get isInitialized => _isInitialized;
   Movie? get currentMovie =>
@@ -523,6 +526,33 @@ class BatchOptimizedMovieService {
     print('  - Mevcut batch: ${_currentBatch.length}');
     print('  - Sonraki batch: ${_nextBatch.length}');
     print('  - ${watchlistMovieIds.length} watchlist filmi filtrelendi');
+  }
+
+  // Mevcut class'ın içine bu metodu ekleyin:
+  Future<Movie?> getMovieById(int movieId) async {
+    try {
+      // Cache'de kontrol et
+      if (_movieCache.containsKey(movieId)) {
+        return _movieCache[movieId];
+      }
+
+      // JSON'dan yükle
+      if (_allMovies.isEmpty) {
+        await _loadAllMovies();
+      }
+
+      final movie = _allMovies.firstWhere(
+        (m) => m.id == movieId,
+        orElse: () => throw Exception('Movie not found'),
+      );
+
+      // Cache'e ekle
+      _movieCache[movieId] = movie;
+      return movie;
+    } catch (e) {
+      print('Error getting movie by ID $movieId: $e');
+      return null;
+    }
   }
 }
 

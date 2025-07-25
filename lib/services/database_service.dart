@@ -185,4 +185,15 @@ class DatabaseService {
       _database = null;
     }
   }
+
+  // Belirli bir kullanıcının tüm yorumlarını getir
+  Future<List<Map<String, dynamic>>> getUserComments(String username) async {
+    final db = await database;
+    return await db.query(
+      _commentsTable,
+      where: 'username = ?',
+      whereArgs: [username],
+      orderBy: 'createdAt DESC',
+    );
+  }
 }

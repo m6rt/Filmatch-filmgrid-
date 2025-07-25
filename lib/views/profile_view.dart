@@ -1,3 +1,4 @@
+import 'package:filmgrid/services/batch_optimized_movie_service.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -379,61 +380,78 @@ class _ProfileViewState extends State<ProfileView>
 
   Future<void> _loadUserComments() async {
     try {
-      // Tüm favoriler ve watchlist'teki filmler için yorumları al
-      final allMovieIds =
-          [
-            ..._favoriteMovies.map((m) => m.id),
-            ..._watchlistMovies.map((m) => m.id),
-          ].toSet().toList(); // Tekrarları kaldır
+      // Direkt kullanıcının yorumlarını al
+      final userComments = await _commentsService.getUserComments(
+        _currentUsername,
+      );
 
-      List<Map<String, dynamic>> allComments = [];
+      // Her yoruma film bilgisini ekle
+      final enrichedComments = await Future.wait(
+        userComments.map((comment) async {
+          try {
+            final movieId = comment['movieId'];
 
-      for (int movieId in allMovieIds) {
-        final comments = await _commentsService.getComments(movieId);
-        // Sadece bu kullanıcının yorumlarını filtrele
-        final userComments =
-            comments
-                .where(
-                  (comment) =>
-                      comment['username'] == _currentUsername ||
-                      comment['username'] == 'Sen',
-                )
-                .toList();
+            // Önce favorite ve watchlist'ten film ara
+            Movie? movie =
+                [
+                  ..._favoriteMovies,
+                  ..._watchlistMovies,
+                ].where((m) => m.id == movieId).firstOrNull;
 
-        // Her yoruma film bilgisini ekle
-        for (var comment in userComments) {
-          final movie = [..._favoriteMovies, ..._watchlistMovies].firstWhere(
-            (m) => m.id == movieId,
-            orElse:
-                () => Movie(
-                  id: movieId,
-                  title: 'Bilinmeyen Film',
-                  posterUrl: '',
-                  year: 0,
-                  genre: [],
-                  director: '',
-                  cast: [],
-                  description: '',
-                ),
-          );
+            // Bulunamazsa movie service'den al
+            if (movie == null) {
+              // BatchOptimizedMovieService'den film al
+              final movieService = BatchOptimizedMovieService();
+              movie = await movieService.getMovieById(movieId);
+            }
 
-          comment['movie'] = movie;
-          allComments.add(comment);
-        }
-      }
+            // Hala bulunamazsa default movie oluştur
+            movie ??= Movie(
+              id: movieId,
+              title: 'Bilinmeyen Film',
+              posterUrl: '',
+              year: 0,
+              genre: [],
+              director: '',
+              cast: [],
+              description: '',
+            );
+
+            comment['movie'] = movie;
+            return comment;
+          } catch (e) {
+            print('Error loading movie for comment: $e');
+            // Hata durumunda default movie ekle
+            comment['movie'] = Movie(
+              id: comment['movieId'] ?? 0,
+              title: 'Film Bulunamadı',
+              posterUrl: '',
+              year: 0,
+              genre: [],
+              director: '',
+              cast: [],
+              description: '',
+            );
+            return comment;
+          }
+        }),
+      );
 
       // Yorumları tarihe göre sırala (en yeni önce)
-      allComments.sort(
+      enrichedComments.sort(
         (a, b) => DateTime.parse(
           b['createdAt'],
         ).compareTo(DateTime.parse(a['createdAt'])),
       );
 
       setState(() {
-        _userComments = allComments;
+        _userComments = enrichedComments;
       });
     } catch (e) {
       print('Error loading user comments: $e');
+      setState(() {
+        _userComments = [];
+      });
     }
   }
 
@@ -446,7 +464,7 @@ class _ProfileViewState extends State<ProfileView>
       final imageUrl = await _profileService.pickAndUploadProfileImage();
       if (imageUrl != null) {
         final updatedProfile = _userProfile!.copyWith(
-          profileImageUrl: imageUrl,
+          profilePictureURL: imageUrl,
         );
 
         final success = await _profileService.updateProfile(updatedProfile);
@@ -731,9 +749,12 @@ class _ProfileViewState extends State<ProfileView>
           ),
           child: ClipOval(
             child:
-                _userProfile!.profileImageUrl != null
+                _userProfile!
+                        .profilePictureURL
+                        .isNotEmpty // profileImageUrl değil profilePictureURL
                     ? Image.network(
-                      _userProfile!.profileImageUrl!,
+                      _userProfile!
+                          .profilePictureURL, // profileImageUrl değil profilePictureURL
                       fit: BoxFit.cover,
                       width: imageSize,
                       height: imageSize,

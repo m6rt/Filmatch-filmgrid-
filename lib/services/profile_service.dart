@@ -7,12 +7,18 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/user_profile.dart';
 import '../models/movie.dart';
+import 'comments_service.dart';
+import 'batch_optimized_movie_service.dart';
 
 class ProfileService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseStorage _storage = FirebaseStorage.instance;
   final ImagePicker _imagePicker = ImagePicker();
+
+  // Service'leri ekleyelim
+  final CommentsService _commentsService = CommentsService();
+  final BatchOptimizedMovieService _movieService = BatchOptimizedMovieService();
 
   User? get currentUser => _auth.currentUser;
 
@@ -32,7 +38,7 @@ class ProfileService {
           uid: user.uid,
           username: user.displayName ?? 'User${user.uid.substring(0, 6)}',
           email: user.email ?? '',
-          profileImageUrl: user.photoURL,
+          profilePictureURL: user.photoURL ?? '',
           createdAt: DateTime.now(),
           lastUpdated: DateTime.now(),
         );
@@ -344,5 +350,102 @@ class ProfileService {
       }
       return null;
     });
+  }
+
+  // Diğer kullanıcıların profilini getir
+  Future<UserProfile?> getUserProfileByUsername(String username) async {
+    try {
+      final querySnapshot =
+          await _firestore
+              .collection('users')
+              .where('username', isEqualTo: username)
+              .limit(1)
+              .get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        final userData = querySnapshot.docs.first.data();
+        final docId = querySnapshot.docs.first.id;
+        return UserProfile.fromFirestore(userData, docId);
+      }
+      return null;
+    } catch (e) {
+      print('Error getting user profile by username: $e');
+      return null;
+    }
+  }
+
+  // Kullanıcının public yorumlarını getir
+  Future<List<Map<String, dynamic>>> getUserPublicComments(
+    String username,
+  ) async {
+    try {
+      final comments = await _commentsService.getUserComments(username);
+
+      // Film bilgilerini ekle
+      final enrichedComments = await Future.wait(
+        comments.map((comment) async {
+          try {
+            final movieId = comment['movieId'];
+            final movie = await _movieService.getMovieById(movieId);
+            if (movie != null) {
+              comment['movie'] = movie;
+            }
+          } catch (e) {
+            print('Error loading movie for comment: $e');
+          }
+          return comment;
+        }),
+      );
+
+      return enrichedComments;
+    } catch (e) {
+      print('Error getting user public comments: $e');
+      return [];
+    }
+  }
+
+  // Kullanıcının public watchlist'ini getir
+  Future<List<Movie>> getUserPublicWatchlist(String username) async {
+    try {
+      final userProfile = await getUserProfileByUsername(username);
+      if (userProfile == null) return [];
+
+      // Privacy kontrolü
+      if (!userProfile.isWatchlistPublic) return [];
+
+      // User'ın watchlist'ini al
+      final watchlistSnapshot =
+          await _firestore
+              .collection('users')
+              .where('username', isEqualTo: username)
+              .limit(1)
+              .get();
+
+      if (watchlistSnapshot.docs.isEmpty) return [];
+
+      final userData = watchlistSnapshot.docs.first.data();
+      final watchlistIds = List<String>.from(
+        userData['watchlistMovieIds'] ?? [],
+      );
+
+      // Movie detaylarını getir
+      final movies = <Movie>[];
+      for (final movieId in watchlistIds.take(20)) {
+        // Limit 20
+        try {
+          final movie = await _movieService.getMovieById(int.parse(movieId));
+          if (movie != null) {
+            movies.add(movie);
+          }
+        } catch (e) {
+          print('Error parsing movie ID $movieId: $e');
+        }
+      }
+
+      return movies;
+    } catch (e) {
+      print('Error getting user public watchlist: $e');
+      return [];
+    }
   }
 }

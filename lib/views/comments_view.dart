@@ -1,3 +1,4 @@
+import 'package:filmgrid/views/public_profile_view.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -942,12 +943,28 @@ class _SpoilerCommentCardState extends State<_SpoilerCommentCard> {
                   children: [
                     Row(
                       children: [
-                        Text(
-                          widget.username,
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                            color: AppTheme.darkGrey,
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder:
+                                    (context) => PublicProfileView(
+                                      username: widget.username,
+                                    ),
+                              ),
+                            );
+                          },
+                          child: Text(
+                            widget.username,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              color:
+                                  AppTheme
+                                      .primaryRed, // Tıklanabilir olduğunu göstermek için
+                              decoration: TextDecoration.underline,
+                            ),
                           ),
                         ),
                         if (widget.isCurrentUser) ...[
