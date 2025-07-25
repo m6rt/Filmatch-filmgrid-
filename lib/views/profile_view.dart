@@ -1,4 +1,5 @@
 import 'package:filmgrid/services/batch_optimized_movie_service.dart';
+import 'package:filmgrid/widgets/movie_detail_modal.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -9,9 +10,11 @@ import '../models/user_profile.dart';
 import '../models/movie.dart';
 import '../services/profile_service.dart';
 import '../services/auth_service.dart';
-import '../services/comments_service.dart'; // Bu import'u ekleyin
+import '../services/comments_service.dart';
 import '../widgets/optimized_video_player.dart';
 import '../theme/app_theme.dart';
+import 'package:flutter/services.dart';
+import 'dart:async';
 
 class ProfileView extends StatefulWidget {
   const ProfileView({super.key});
@@ -499,16 +502,13 @@ class _ProfileViewState extends State<ProfileView>
       context: context,
       barrierDismissible: true,
       builder:
-          (context) => _MovieDetailsDialog(
+          (context) => MovieDetailModal(
             movie: movie,
             profileService: _profileService,
             onAddToFavorites: (movie) => _addToFavorites(movie),
             onAddToWatchlist: (movie) => _addToWatchlist(movie),
           ),
-    ).then((_) {
-      // Dialog kapandığında profili yeniden yükle
-      _loadProfile();
-    });
+    );
   }
 
   Future<void> _addToFavorites(Movie movie) async {
@@ -1293,70 +1293,15 @@ class _SpoilerCommentCardState extends State<_SpoilerCommentCard> {
           elevation: 2,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
-            side:
-                isSpoiler
-                    ? BorderSide(color: AppTheme.primaryRed, width: 2)
-                    : BorderSide.none,
           ),
           child: Padding(
             padding: const EdgeInsets.all(12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Film bilgisi - Compact header
                 _buildMovieHeader(movie, fontSize, isSpoiler),
-
                 SizedBox(height: spacing),
-
-                // Yorum metni (spoiler kontrolü ile) - Flexible kullan
                 Expanded(child: _buildCommentContent(isSpoiler, fontSize)),
-
-                // Tarih ve "Yorumları Gör" butonu
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          widget.comment['date'],
-                          style: TextStyle(
-                            fontSize: fontSize - 2,
-                            color: AppTheme.secondaryGrey,
-                          ),
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppTheme.primaryRed.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.comment,
-                              size: 12,
-                              color: AppTheme.primaryRed,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              'Yorumlar',
-                              style: TextStyle(
-                                fontSize: fontSize - 3,
-                                color: AppTheme.primaryRed,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
               ],
             ),
           ),
@@ -1370,8 +1315,8 @@ class _SpoilerCommentCardState extends State<_SpoilerCommentCard> {
       children: [
         // Film posteri (küçük)
         Container(
-          width: 35,
-          height: 50,
+          width: 40,
+          height: 60,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(6),
             image:
@@ -1381,11 +1326,11 @@ class _SpoilerCommentCardState extends State<_SpoilerCommentCard> {
                       fit: BoxFit.cover,
                     )
                     : null,
-            color: movie.posterUrl.isEmpty ? AppTheme.secondaryGrey : null,
+            color: movie.posterUrl.isEmpty ? Colors.grey : null,
           ),
           child:
               movie.posterUrl.isEmpty
-                  ? Icon(Icons.movie, color: Colors.white, size: 16)
+                  ? const Icon(Icons.movie, size: 20, color: Colors.white)
                   : null,
         ),
 
@@ -1395,62 +1340,36 @@ class _SpoilerCommentCardState extends State<_SpoilerCommentCard> {
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
             children: [
               Text(
                 movie.title,
                 style: TextStyle(
-                  fontSize: fontSize - 1,
+                  fontSize: fontSize,
                   fontWeight: FontWeight.bold,
-                  color: AppTheme.darkGrey,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: 2),
-              Wrap(
-                crossAxisAlignment: WrapCrossAlignment.center,
+              const SizedBox(height: 4),
+              Row(
                 children: [
                   ...List.generate(
                     5,
                     (index) => Icon(
-                      index < (widget.comment['rating'] / 2)
+                      index < ((widget.comment['rating'] ?? 0) / 2)
                           ? Icons.star
                           : Icons.star_border,
-                      size: 10,
+                      size: 12,
                       color: Colors.amber,
                     ),
                   ),
                   const SizedBox(width: 4),
-                  Text(
-                    '${widget.comment['rating']}/10',
-                    style: TextStyle(
-                      fontSize: 9,
-                      fontWeight: FontWeight.bold,
+                  if (isSpoiler)
+                    Icon(
+                      Icons.visibility_off,
+                      size: 12,
                       color: AppTheme.primaryRed,
                     ),
-                  ),
-                  if (isSpoiler) ...[
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 3,
-                        vertical: 1,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppTheme.primaryRed,
-                        borderRadius: BorderRadius.circular(3),
-                      ),
-                      child: Text(
-                        'SPOILER',
-                        style: TextStyle(
-                          fontSize: 7,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ],
                 ],
               ),
             ],
@@ -1470,820 +1389,67 @@ class _SpoilerCommentCardState extends State<_SpoilerCommentCard> {
         },
         child: Container(
           width: double.infinity,
-          height: double.infinity,
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: Colors.black12,
+            color: AppTheme.primaryRed.withOpacity(0.1),
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: AppTheme.primaryRed.withOpacity(0.5),
-              width: 1,
-            ),
-          ),
-          child: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.visibility_off,
-                  color: AppTheme.primaryRed,
-                  size: 20,
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'SPOILER İÇERİK',
-                  style: TextStyle(
-                    fontSize: fontSize - 2,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.primaryRed,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Görmek için tıklayın',
-                  style: TextStyle(
-                    fontSize: fontSize - 4,
-                    color: AppTheme.secondaryGrey,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (isSpoiler && _isRevealed) ...[
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
-            decoration: BoxDecoration(
-              color: AppTheme.primaryRed.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.visibility, color: AppTheme.primaryRed, size: 12),
-                const SizedBox(width: 4),
-                Text(
-                  'Spoiler görünüyor',
-                  style: TextStyle(
-                    fontSize: fontSize - 4,
-                    color: AppTheme.primaryRed,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      _isRevealed = false;
-                    });
-                  },
-                  child: Text(
-                    'Gizle',
-                    style: TextStyle(
-                      fontSize: fontSize - 4,
-                      color: AppTheme.primaryRed,
-                      fontWeight: FontWeight.bold,
-                      decoration: TextDecoration.underline,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 6),
-        ],
-        Expanded(
-          child: Text(
-            widget.comment['comment'],
-            style: TextStyle(
-              fontSize: fontSize - 1,
-              color: AppTheme.darkGrey,
-              height: 1.3,
-            ),
-            maxLines: isSpoiler && _isRevealed ? 3 : 4,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// Movie Details Dialog Widget - Browse view'dan kopyalandı
-class _MovieDetailsDialog extends StatefulWidget {
-  final Movie movie;
-  final ProfileService profileService;
-  final Function(Movie) onAddToFavorites;
-  final Function(Movie) onAddToWatchlist;
-
-  const _MovieDetailsDialog({
-    required this.movie,
-    required this.profileService,
-    required this.onAddToFavorites,
-    required this.onAddToWatchlist,
-  });
-
-  @override
-  State<_MovieDetailsDialog> createState() => _MovieDetailsDialogState();
-}
-
-class _MovieDetailsDialogState extends State<_MovieDetailsDialog> {
-  bool _isAddingToFavorites = false;
-  bool _isAddingToWatchlist = false;
-  bool _isInFavorites = false;
-  bool _isInWatchlist = false;
-  bool _isLoading = true;
-
-  // Yorumlar için yeni state'ler ekleyin
-  final CommentsService _commentsService = CommentsService();
-  List<Map<String, dynamic>> _comments = [];
-  bool _isLoadingComments = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _checkMovieStatus();
-    _loadComments(); // Yorumları yükle
-  }
-
-  Future<void> _loadComments() async {
-    setState(() {
-      _isLoadingComments = true;
-    });
-
-    final comments = await _commentsService.getComments(widget.movie.id);
-
-    setState(() {
-      _comments = comments;
-      _isLoadingComments = false;
-    });
-  }
-
-  Future<void> _checkMovieStatus() async {
-    final movieId = widget.movie.id.toString();
-    try {
-      final inFavorites = await widget.profileService.isMovieInFavorites(
-        movieId,
-      );
-      final inWatchlist = await widget.profileService.isMovieInWatchlist(
-        movieId,
-      );
-
-      if (mounted) {
-        setState(() {
-          _isInFavorites = inFavorites;
-          _isInWatchlist = inWatchlist;
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      print('Error checking movie status: $e');
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final screenHeight = MediaQuery.of(context).size.height;
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isTablet = screenWidth > 600;
-
-    return Dialog(
-      alignment: Alignment.center, // Dialogu merkeze konumlandır
-      insetPadding: EdgeInsets.symmetric(
-        horizontal: isTablet ? 96 : 16,
-        vertical: 40, // 50'den 40'a düşür
-      ),
-      backgroundColor: Colors.transparent,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          minHeight: screenHeight * 0.3, // Minimum yükseklik
-          maxHeight: screenHeight * 0.85, // %80'den %85'e çıkar
-          maxWidth: isTablet ? 600 : double.infinity,
-        ),
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppTheme.primaryRed.withOpacity(0.3)),
           ),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Header with close button
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
+              Icon(Icons.visibility_off, color: AppTheme.primaryRed, size: 24),
+              const SizedBox(height: 8),
+              Text(
+                'Spoiler İçerik\nGörmek için tıklayın',
+                textAlign: TextAlign.center,
+                style: TextStyle(
                   color: AppTheme.primaryRed,
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(16),
-                    topRight: Radius.circular(16),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        widget.movie.title,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.close, color: Colors.white),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Content
-              Expanded(
-                child: Column(
-                  children: [
-                    // Scrollable content
-                    Expanded(
-                      child: SingleChildScrollView(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Trailer Video
-                            if (widget.movie.trailerUrl != null)
-                              Container(
-                                height:
-                                    isTablet
-                                        ? 220
-                                        : 180, // 180'den 220'ye, 140'tan 180'e artırdım
-                                margin: const EdgeInsets.only(bottom: 12),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: OptimizedVideoPlayer(
-                                    trailerUrl: widget.movie.trailerUrl!,
-                                    backgroundColor: AppTheme.getGenreColor(
-                                      widget.movie.genre.isNotEmpty
-                                          ? widget.movie.genre.first
-                                          : 'Unknown',
-                                    ),
-                                    autoPlay: false,
-                                  ),
-                                ),
-                              ),
-
-                            // Movie Info
-                            _buildInfoRow('Yönetmen', widget.movie.director),
-                            _buildInfoRow('Tür', widget.movie.genre.join(', ')),
-                            _buildInfoRow('Yıl', widget.movie.year.toString()),
-                            _buildInfoRow(
-                              'Oyuncular',
-                              widget.movie.cast.take(3).join(', '),
-                            ),
-
-                            const SizedBox(height: 12),
-
-                            // Description
-                            Text(
-                              'Açıklama',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.darkGrey,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              widget.movie.description,
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: AppTheme.darkGrey,
-                                height: 1.4,
-                              ),
-                              maxLines: 3,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-
-                            const SizedBox(height: 24), // 16'dan 24'e çıkardım
-                            // Yorumlar Bölümü
-                            _buildCommentsSection(),
-
-                            const SizedBox(height: 16),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    // Action Buttons - Fixed at bottom
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: const BorderRadius.only(
-                          bottomLeft: Radius.circular(16),
-                          bottomRight: Radius.circular(16),
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
-                            blurRadius: 10,
-                            offset: const Offset(0, -2),
-                          ),
-                        ],
-                      ),
-                      child:
-                          _isLoading
-                              ? const Center(child: CircularProgressIndicator())
-                              : Row(
-                                children: [
-                                  // Favorilere Ekle/Çıkar
-                                  Expanded(
-                                    child: ElevatedButton.icon(
-                                      onPressed:
-                                          _isAddingToFavorites
-                                              ? null
-                                              : () async {
-                                                setState(
-                                                  () =>
-                                                      _isAddingToFavorites =
-                                                          true,
-                                                );
-
-                                                if (_isInFavorites) {
-                                                  final success = await widget
-                                                      .profileService
-                                                      .removeFavoriteMovie(
-                                                        widget.movie.id
-                                                            .toString(),
-                                                      );
-                                                  if (success && mounted) {
-                                                    setState(() {
-                                                      _isInFavorites = false;
-                                                    });
-                                                    ScaffoldMessenger.of(
-                                                      context,
-                                                    ).showSnackBar(
-                                                      SnackBar(
-                                                        content: Text(
-                                                          '${widget.movie.title} favorilerden çıkarıldı',
-                                                        ),
-                                                        backgroundColor:
-                                                            Colors.orange,
-                                                      ),
-                                                    );
-                                                  }
-                                                } else {
-                                                  await widget.onAddToFavorites(
-                                                    widget.movie,
-                                                  );
-                                                  if (mounted) {
-                                                    setState(() {
-                                                      _isInFavorites = true;
-                                                    });
-                                                  }
-                                                }
-
-                                                setState(
-                                                  () =>
-                                                      _isAddingToFavorites =
-                                                          false,
-                                                );
-                                              },
-                                      icon:
-                                          _isAddingToFavorites
-                                              ? const SizedBox(
-                                                width: 16,
-                                                height: 16,
-                                                child:
-                                                    CircularProgressIndicator(
-                                                      strokeWidth: 2,
-                                                      color: Colors.white,
-                                                    ),
-                                              )
-                                              : Icon(
-                                                _isInFavorites
-                                                    ? Icons.favorite
-                                                    : Icons.favorite_border,
-                                                size: 18,
-                                              ),
-                                      label: Text(
-                                        _isAddingToFavorites
-                                            ? (_isInFavorites
-                                                ? 'Çıkarılıyor...'
-                                                : 'Ekleniyor...')
-                                            : (_isInFavorites
-                                                ? 'Favorilerden Çıkar'
-                                                : 'Favorilere Ekle'),
-                                        style: const TextStyle(fontSize: 11),
-                                      ),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor:
-                                            _isInFavorites
-                                                ? Colors.orange
-                                                : AppTheme.primaryRed,
-                                        foregroundColor: Colors.white,
-                                        padding: const EdgeInsets.symmetric(
-                                          vertical: 8,
-                                          horizontal: 6,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-
-                                  const SizedBox(width: 8),
-
-                                  // Listeye Ekle/Çıkar
-                                  Expanded(
-                                    child: ElevatedButton.icon(
-                                      onPressed:
-                                          _isAddingToWatchlist
-                                              ? null
-                                              : () async {
-                                                setState(
-                                                  () =>
-                                                      _isAddingToWatchlist =
-                                                          true,
-                                                );
-
-                                                if (_isInWatchlist) {
-                                                  final success = await widget
-                                                      .profileService
-                                                      .removeFromWatchlist(
-                                                        widget.movie.id
-                                                            .toString(),
-                                                      );
-                                                  if (success && mounted) {
-                                                    setState(() {
-                                                      _isInWatchlist = false;
-                                                    });
-                                                    ScaffoldMessenger.of(
-                                                      context,
-                                                    ).showSnackBar(
-                                                      SnackBar(
-                                                        content: Text(
-                                                          '${widget.movie.title} izleme listesinden çıkarıldı',
-                                                        ),
-                                                        backgroundColor:
-                                                            Colors.orange,
-                                                      ),
-                                                    );
-                                                  }
-                                                } else {
-                                                  await widget.onAddToWatchlist(
-                                                    widget.movie,
-                                                  );
-                                                  if (mounted) {
-                                                    setState(() {
-                                                      _isInWatchlist = true;
-                                                    });
-                                                  }
-                                                }
-
-                                                setState(
-                                                  () =>
-                                                      _isAddingToWatchlist =
-                                                          false,
-                                                );
-                                              },
-                                      icon:
-                                          _isAddingToWatchlist
-                                              ? const SizedBox(
-                                                width: 16,
-                                                height: 16,
-                                                child:
-                                                    CircularProgressIndicator(
-                                                      strokeWidth: 2,
-                                                      color: Colors.white,
-                                                    ),
-                                              )
-                                              : Icon(
-                                                _isInWatchlist
-                                                    ? Icons.playlist_remove
-                                                    : Icons.playlist_add,
-                                                size: 18,
-                                              ),
-                                      label: Text(
-                                        _isAddingToWatchlist
-                                            ? (_isInWatchlist
-                                                ? 'Çıkarılıyor...'
-                                                : 'Ekleniyor...')
-                                            : (_isInWatchlist
-                                                ? 'Listeden Çıkar'
-                                                : 'Listeye Ekle'),
-                                        style: const TextStyle(fontSize: 11),
-                                      ),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor:
-                                            _isInWatchlist
-                                                ? Colors.orange
-                                                : AppTheme.primaryRed,
-                                        foregroundColor: Colors.white,
-                                        padding: const EdgeInsets.symmetric(
-                                          vertical: 8,
-                                          horizontal: 6,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                    ),
-                  ],
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ],
           ),
         ),
-      ),
-    );
-  }
+      );
+    }
 
-  Widget _buildInfoRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 80,
-            child: Text(
-              '$label:',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: AppTheme.secondaryGrey,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              value,
-              style: TextStyle(fontSize: 14, color: AppTheme.darkGrey),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCommentsSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Yorumlar başlığı
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Yorumlar (${_comments.length})',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.darkGrey,
-              ),
-            ),
-            GestureDetector(
-              onTap: () {
-                Navigator.pushNamed(
-                  context,
-                  '/comments',
-                  arguments: {
-                    'movieId': widget.movie.id,
-                    'movie': widget.movie,
-                  },
-                ).then((_) {
-                  _loadComments();
-                });
-              },
-              child: Text(
-                'Tümünü Gör',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: AppTheme.primaryRed,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-          ],
-        ),
-
-        const SizedBox(height: 8),
-
-        // Yorumlar listesi - Yüksekliği artıralım
-        SizedBox(
-          height: 130, // 100'den 130'a çıkar
-          child:
-              _isLoadingComments
-                  ? const Center(
-                    child: CircularProgressIndicator(
-                      color: AppTheme.primaryRed,
-                    ),
-                  )
-                  : _comments.isEmpty
-                  ? Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(20), // Padding'i artır
-                    decoration: BoxDecoration(
-                      color: AppTheme.lightGrey,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: AppTheme.secondaryGrey.withOpacity(0.3),
-                        width: 1,
-                      ),
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.comment_outlined,
-                          color: AppTheme.secondaryGrey,
-                          size: 24, // İkon boyutunu artır
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Henüz yorum yapılmamış\nİlk yorumu siz yapın!',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 12, // Font boyutunu artır
-                            color: AppTheme.secondaryGrey,
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                  : ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: _comments.length,
-                    itemBuilder: (context, index) {
-                      final comment = _comments[index];
-                      return _buildCommentCard(comment);
-                    },
-                  ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCommentCard(Map<String, dynamic> comment) {
-    return GestureDetector(
-      onTap: () {
-        // CommentsView'e yönlendir
-        Navigator.pushNamed(
-          context,
-          '/comments',
-          arguments: {'movieId': widget.movie.id, 'movie': widget.movie},
-        ).then((_) {
-          // CommentsView'den döndükten sonra yorumları yenile
-          _loadComments();
-        });
-      },
-      child: Container(
-        width: 300, // Genişliği 280'den 300'e artır
-        margin: const EdgeInsets.only(right: 12),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: AppTheme.lightGrey,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: AppTheme.secondaryGrey.withOpacity(0.3),
-            width: 1,
+        Expanded(
+          child: Text(
+            widget.comment['comment']?.toString() ?? '',
+            style: TextStyle(fontSize: fontSize, height: 1.4),
+            maxLines: 6,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        const SizedBox(height: 8),
+        Row(
           children: [
-            // Kullanıcı bilgisi ve yıldızlar - Daha kompakt
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 14, // Biraz küçült
-                  backgroundColor: AppTheme.primaryRed,
-                  child: Text(
-                    (comment['username']?.toString() ?? 'U')
-                        .substring(0, 1)
-                        .toUpperCase(),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 11, // Font boyutunu küçült
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        comment['username']?.toString() ?? 'Kullanıcı',
-                        style: TextStyle(
-                          fontSize: 11, // Font boyutunu küçült
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.darkGrey,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Row(
-                        children: [
-                          ...List.generate(
-                            5,
-                            (starIndex) => Icon(
-                              starIndex < ((comment['rating'] ?? 0) / 2)
-                                  ? Icons.star
-                                  : Icons.star_border,
-                              size: 10, // Yıldız boyutunu küçült
-                              color: Colors.amber,
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              comment['date']?.toString() ?? '',
-                              style: TextStyle(
-                                fontSize: 9, // Font boyutunu küçült
-                                color: AppTheme.secondaryGrey,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+            Text(
+              widget.comment['date']?.toString() ?? '',
+              style: TextStyle(
+                fontSize: fontSize - 2,
+                color: AppTheme.secondaryGrey,
+              ),
             ),
-
-            const SizedBox(height: 6), // Spacing'i azalt
-            // Yorum metni (spoiler kontrolü ile)
-            Expanded(
-              child:
-                  (comment['isSpoiler'] == true)
-                      ? Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(6), // Padding'i azalt
-                        decoration: BoxDecoration(
-                          color: Colors.black12,
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(
-                            color: AppTheme.primaryRed.withOpacity(0.5),
-                          ),
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.visibility_off,
-                              color: AppTheme.primaryRed,
-                              size: 14, // İkon boyutunu küçült
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'Spoiler içerik\nTıklayın',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 9, // Font boyutunu küçült
-                                color: AppTheme.darkGrey,
-                                fontWeight: FontWeight.w500,
-                                height: 1.2,
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                      : Text(
-                        comment['comment']?.toString() ?? '',
-                        style: TextStyle(
-                          fontSize: 11, // Font boyutunu küçült
-                          color: AppTheme.darkGrey,
-                          height: 1.3,
-                        ),
-                        maxLines: 4, // Maksimum satır sayısını artır
-                        overflow: TextOverflow.ellipsis,
-                      ),
+            const Spacer(),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppTheme.secondaryGrey.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                widget.comment['language'] ?? 'TR',
+                style: TextStyle(fontSize: fontSize - 2),
+              ),
             ),
           ],
         ),
-      ),
+      ],
     );
   }
 }

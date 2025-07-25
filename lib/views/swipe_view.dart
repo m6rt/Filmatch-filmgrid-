@@ -850,23 +850,6 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
                                                                       ? 6
                                                                       : 4,
                                                             ),
-                                                            Text(
-                                                              'Trailer',
-                                                              style: TextStyle(
-                                                                color:
-                                                                    Colors
-                                                                        .white,
-                                                                fontSize:
-                                                                    isTablet
-                                                                        ? 14
-                                                                        : 12,
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .w500,
-                                                                fontFamily:
-                                                                    'PlayfairDisplay',
-                                                              ),
-                                                            ),
                                                           ],
                                                         ),
                                                       ),
@@ -1394,7 +1377,6 @@ class _CustomFullscreenVideoPlayerState
 
   @override
   void dispose() {
-    // Timer'ları güvenli şekilde dispose et
     _hideControlsTimer?.cancel();
     _positionTimer?.cancel();
     super.dispose();
@@ -1427,11 +1409,9 @@ class _CustomFullscreenVideoPlayerState
               _currentPosition = position;
               _isPlaying = isPlaying;
 
-              // Video süresi varsa güncelle
               if (duration != null && duration.inSeconds > 0) {
                 _totalDuration = duration;
               } else if (_totalDuration.inSeconds <= 0) {
-                // Varsayılan süre
                 _totalDuration = Duration(
                   minutes: SwipeViewConstants.defaultTrailerMinutes,
                 );
@@ -1461,15 +1441,11 @@ class _CustomFullscreenVideoPlayerState
   void _seekTo(Duration position) {
     final state = _playerKey.currentState;
     if (state != null) {
-      // Önce seek et
       state.seekTo(position);
-
-      // Hemen pozisyonu güncelle (görsel feedback için)
       setState(() {
         _currentPosition = position;
       });
 
-      // 500ms sonra gerçek pozisyonu kontrol et
       Timer(Duration(milliseconds: 500), () {
         if (mounted) {
           final actualPosition = state.currentPosition;
@@ -1509,335 +1485,276 @@ class _CustomFullscreenVideoPlayerState
     final screenWidth = MediaQuery.of(context).size.width;
     final isTablet = screenWidth > 600;
 
-    return PopScope(
-      onPopInvokedWithResult: (didPop, result) {
-        if (didPop) {
-          final currentPosition = _playerKey.currentState?.currentPosition;
-          widget.onClose(currentPosition);
-        }
-      },
-      child: Scaffold(
-        backgroundColor: Colors.black,
-        body: GestureDetector(
-          onTap: () {
-            setState(() {
-              _showControls = !_showControls;
-            });
-            if (_showControls) {
-              _startHideControlsTimer();
-            }
-          },
-          child: Stack(
-            children: [
-              // Video Player
-              Center(
-                child: AspectRatio(
-                  aspectRatio: SwipeViewConstants.aspectRatio,
-                  child: OptimizedVideoPlayer(
-                    key: _playerKey,
-                    trailerUrl: widget.trailerUrl,
-                    backgroundColor: Colors.black,
-                    autoPlay: true,
-                    enableFullscreenControls:
-                        false, // YouTube kontrollerini devre dışı bırak
-                    initialPosition: widget.initialPosition,
-                  ),
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: GestureDetector(
+        onTap: () {
+          setState(() {
+            _showControls = !_showControls;
+          });
+          if (_showControls) {
+            _startHideControlsTimer();
+          }
+        },
+        child: Stack(
+          children: [
+            // Video Player
+            Center(
+              child: AspectRatio(
+                aspectRatio: SwipeViewConstants.aspectRatio,
+                child: OptimizedVideoPlayer(
+                  key: _playerKey,
+                  trailerUrl: widget.trailerUrl,
+                  backgroundColor: Colors.black,
+                  autoPlay: true,
+                  initialPosition: widget.initialPosition,
                 ),
               ),
+            ),
 
-              // Özel Kontroller
-              AnimatedOpacity(
-                opacity: _showControls ? 1.0 : 0.0,
-                duration: Duration(milliseconds: 300),
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.black.withOpacity(0.7),
-                        Colors.transparent,
-                        Colors.transparent,
-                        Colors.black.withOpacity(0.7),
-                      ],
-                      stops: [0.0, 0.3, 0.7, 1.0],
-                    ),
+            // Kontroller
+            AnimatedOpacity(
+              opacity: _showControls ? 1.0 : 0.0,
+              duration: Duration(milliseconds: 300),
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.black.withOpacity(0.7),
+                      Colors.transparent,
+                      Colors.transparent,
+                      Colors.black.withOpacity(0.7),
+                    ],
+                    stops: [0.0, 0.3, 0.7, 1.0],
                   ),
-                  child: Stack(
-                    children: [
-                      // Üst Bar - Kapatma Butonu
-                      Positioned(
-                        top:
-                            MediaQuery.of(context).padding.top +
-                            (isTablet ? 15 : 10),
-                        left: isTablet ? 30 : 20,
-                        right: isTablet ? 30 : 20,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            // Film Başlığı
-                            Expanded(
-                              child: Text(
-                                'Film Trailer',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: isTablet ? 22 : 18,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                ),
+                child: Stack(
+                  children: [
+                    // Üst Bar
+                    Positioned(
+                      top:
+                          MediaQuery.of(context).padding.top +
+                          (isTablet ? 15 : 10),
+                      left: isTablet ? 30 : 20,
+                      right: isTablet ? 30 : 20,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Film Trailer',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: isTablet ? 22 : 18,
+                                fontWeight: FontWeight.w600,
                               ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            // Kapatma Butonu
-                            Material(
-                              color: Colors.transparent,
-                              child: InkWell(
-                                onTap: _closeFullscreen,
-                                borderRadius: BorderRadius.circular(
-                                  isTablet ? 30 : 25,
-                                ),
-                                child: Container(
-                                  padding: EdgeInsets.all(isTablet ? 16 : 12),
-                                  decoration: BoxDecoration(
-                                    color: Colors.black.withOpacity(0.5),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Icon(
-                                    Icons.close,
-                                    color: Colors.white,
-                                    size: isTablet ? 28 : 24,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      // Orta - Play/Pause Butonu
-                      Center(
-                        child: Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            onTap: _togglePlayPause,
-                            borderRadius: BorderRadius.circular(
-                              isTablet ? 50 : 40,
-                            ),
-                            child: Container(
-                              padding: EdgeInsets.all(isTablet ? 28 : 20),
+                          ),
+                          IconButton(
+                            onPressed: _closeFullscreen,
+                            icon: Container(
+                              padding: EdgeInsets.all(isTablet ? 16 : 12),
                               decoration: BoxDecoration(
-                                color: AppTheme.primaryRed.withOpacity(0.9),
+                                color: Colors.black.withOpacity(0.5),
                                 shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.3),
-                                    blurRadius: 10,
-                                    spreadRadius: 2,
-                                  ),
-                                ],
                               ),
                               child: Icon(
-                                _isPlaying ? Icons.pause : Icons.play_arrow,
+                                Icons.close,
                                 color: Colors.white,
-                                size:
-                                    isTablet
-                                        ? 50
-                                        : SwipeViewConstants.playButtonSize,
+                                size: isTablet ? 28 : 24,
                               ),
                             ),
                           ),
+                        ],
+                      ),
+                    ),
+
+                    // Orta Play/Pause
+                    Center(
+                      child: GestureDetector(
+                        onTap: _togglePlayPause,
+                        child: Container(
+                          padding: EdgeInsets.all(isTablet ? 28 : 20),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryRed.withOpacity(0.9),
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.3),
+                                blurRadius: 10,
+                                spreadRadius: 2,
+                              ),
+                            ],
+                          ),
+                          child: Icon(
+                            _isPlaying ? Icons.pause : Icons.play_arrow,
+                            color: Colors.white,
+                            size:
+                                isTablet
+                                    ? 50
+                                    : SwipeViewConstants.playButtonSize,
+                          ),
                         ),
                       ),
+                    ),
 
-                      // Alt Bar - Progress Bar ve Zaman
-                      Positioned(
-                        bottom:
-                            MediaQuery.of(context).padding.bottom +
-                            (isTablet ? 30 : 20),
-                        left: isTablet ? 30 : 20,
-                        right: isTablet ? 30 : 20,
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            // Progress Bar
-                            Row(
-                              children: [
-                                // Zaman - Başlangıç
-                                Text(
-                                  _formatDuration(_currentPosition),
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: isTablet ? 16 : 14,
-                                    fontWeight: FontWeight.w500,
-                                  ),
+                    // Alt kontroller
+                    Positioned(
+                      bottom:
+                          MediaQuery.of(context).padding.bottom +
+                          (isTablet ? 30 : 20),
+                      left: isTablet ? 30 : 20,
+                      right: isTablet ? 30 : 20,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Progress bar
+                          Row(
+                            children: [
+                              Text(
+                                _formatDuration(_currentPosition),
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: isTablet ? 16 : 14,
+                                  fontWeight: FontWeight.w500,
                                 ),
-                                SizedBox(width: isTablet ? 16 : 12),
-
-                                // Progress Bar
-                                Expanded(
-                                  child: SliderTheme(
-                                    data: SliderTheme.of(context).copyWith(
-                                      activeTrackColor: AppTheme.primaryRed,
-                                      inactiveTrackColor: Colors.white
-                                          .withOpacity(0.3),
-                                      thumbColor: AppTheme.primaryRed,
-                                      overlayColor: AppTheme.primaryRed
-                                          .withOpacity(0.2),
-                                      thumbShape: RoundSliderThumbShape(
-                                        enabledThumbRadius: isTablet ? 10 : 8,
-                                      ),
-                                      trackHeight: isTablet ? 6 : 4,
-                                    ),
-                                    child: Slider(
-                                      value:
-                                          _totalDuration.inSeconds > 0
-                                              ? (_currentPosition.inSeconds
-                                                          .toDouble() /
-                                                      _totalDuration.inSeconds
-                                                          .toDouble())
-                                                  .clamp(0.0, 1.0)
-                                              : 0.0,
-                                      min: 0.0,
-                                      max: 1.0,
-                                      onChanged: (value) {
-                                        if (_totalDuration.inSeconds > 0) {
-                                          final newPosition = Duration(
-                                            seconds:
-                                                (value *
-                                                        _totalDuration
-                                                            .inSeconds)
-                                                    .round(),
-                                          );
-                                          _seekTo(newPosition);
-                                        }
-                                      },
-                                    ),
-                                  ),
-                                ),
-
-                                SizedBox(width: isTablet ? 16 : 12),
-                                // Zaman - Toplam (tahmini)
-                                Text(
-                                  _totalDuration.inSeconds > 0
-                                      ? _formatDuration(_totalDuration)
-                                      : '00:03:00', // Varsayılan trailer süresi
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: isTablet ? 16 : 14,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-
-                            SizedBox(height: isTablet ? 30 : 20),
-
-                            // Alt Kontroller
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                // 10 saniye geri
-                                Material(
-                                  color: Colors.transparent,
-                                  child: InkWell(
-                                    onTap: () {
+                              ),
+                              SizedBox(width: isTablet ? 16 : 12),
+                              Expanded(
+                                child: Slider(
+                                  value:
+                                      _totalDuration.inSeconds > 0
+                                          ? (_currentPosition.inSeconds
+                                                      .toDouble() /
+                                                  _totalDuration.inSeconds
+                                                      .toDouble())
+                                              .clamp(0.0, 1.0)
+                                          : 0.0,
+                                  min: 0.0,
+                                  max: 1.0,
+                                  activeColor: AppTheme.primaryRed,
+                                  inactiveColor: Colors.white.withOpacity(0.3),
+                                  onChanged: (value) {
+                                    if (_totalDuration.inSeconds > 0) {
                                       final newPosition = Duration(
-                                        seconds: (_currentPosition.inSeconds -
-                                                SwipeViewConstants.seekSeconds)
-                                            .clamp(0, _totalDuration.inSeconds),
+                                        seconds:
+                                            (value * _totalDuration.inSeconds)
+                                                .round(),
                                       );
                                       _seekTo(newPosition);
-                                    },
-                                    borderRadius: BorderRadius.circular(
-                                      isTablet ? 30 : 25,
-                                    ),
-                                    child: Container(
-                                      padding: EdgeInsets.all(
-                                        isTablet ? 16 : 12,
+                                    }
+                                  },
+                                ),
+                              ),
+                              SizedBox(width: isTablet ? 16 : 12),
+                              Text(
+                                _totalDuration.inSeconds > 0
+                                    ? _formatDuration(_totalDuration)
+                                    : '00:03:00',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: isTablet ? 16 : 14,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          SizedBox(height: isTablet ? 30 : 20),
+
+                          // Skip butonları
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              // 10 saniye geri
+                              GestureDetector(
+                                onTap: () {
+                                  final newPosition = Duration(
+                                    seconds: (_currentPosition.inSeconds -
+                                            SwipeViewConstants.seekSeconds)
+                                        .clamp(0, _totalDuration.inSeconds),
+                                  );
+                                  _seekTo(newPosition);
+                                },
+                                child: Container(
+                                  padding: EdgeInsets.all(isTablet ? 16 : 12),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.replay_10,
+                                        color: Colors.white,
+                                        size:
+                                            isTablet
+                                                ? 28
+                                                : SwipeViewConstants
+                                                    .seekButtonSize,
                                       ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(
-                                            Icons.replay_10,
-                                            color: Colors.white,
-                                            size:
-                                                isTablet
-                                                    ? 28
-                                                    : SwipeViewConstants
-                                                        .seekButtonSize,
-                                          ),
-                                          SizedBox(width: isTablet ? 6 : 4),
-                                          Text(
-                                            '10s',
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                              fontSize: isTablet ? 14 : 12,
-                                            ),
-                                          ),
-                                        ],
+                                      SizedBox(width: isTablet ? 6 : 4),
+                                      Text(
+                                        '10s',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: isTablet ? 14 : 12,
+                                        ),
                                       ),
-                                    ),
+                                    ],
                                   ),
                                 ),
+                              ),
 
-                                SizedBox(width: isTablet ? 60 : 40),
+                              SizedBox(width: isTablet ? 60 : 40),
 
-                                // 10 saniye ileri
-                                Material(
-                                  color: Colors.transparent,
-                                  child: InkWell(
-                                    onTap: () {
-                                      final newPosition = Duration(
-                                        seconds: (_currentPosition.inSeconds +
-                                                SwipeViewConstants.seekSeconds)
-                                            .clamp(0, _totalDuration.inSeconds),
-                                      );
-                                      _seekTo(newPosition);
-                                    },
-                                    borderRadius: BorderRadius.circular(
-                                      isTablet ? 30 : 25,
-                                    ),
-                                    child: Container(
-                                      padding: EdgeInsets.all(
-                                        isTablet ? 16 : 12,
+                              // 10 saniye ileri
+                              GestureDetector(
+                                onTap: () {
+                                  final newPosition = Duration(
+                                    seconds: (_currentPosition.inSeconds +
+                                            SwipeViewConstants.seekSeconds)
+                                        .clamp(0, _totalDuration.inSeconds),
+                                  );
+                                  _seekTo(newPosition);
+                                },
+                                child: Container(
+                                  padding: EdgeInsets.all(isTablet ? 16 : 12),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.forward_10,
+                                        color: Colors.white,
+                                        size:
+                                            isTablet
+                                                ? 28
+                                                : SwipeViewConstants
+                                                    .seekButtonSize,
                                       ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(
-                                            Icons.forward_10,
-                                            color: Colors.white,
-                                            size:
-                                                isTablet
-                                                    ? 28
-                                                    : SwipeViewConstants
-                                                        .seekButtonSize,
-                                          ),
-                                          SizedBox(width: isTablet ? 6 : 4),
-                                          Text(
-                                            '10s',
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                              fontSize: isTablet ? 14 : 12,
-                                            ),
-                                          ),
-                                        ],
+                                      SizedBox(width: isTablet ? 6 : 4),
+                                      Text(
+                                        '10s',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: isTablet ? 14 : 12,
+                                        ),
                                       ),
-                                    ),
+                                    ],
                                   ),
                                 ),
-                              ],
-                            ),
-                          ],
-                        ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
