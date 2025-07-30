@@ -59,7 +59,17 @@ class _CommentsViewState extends State<CommentsView> {
   void initState() {
     super.initState();
     _getCurrentUser();
-    _loadData();
+
+    // Debug - veritabanı tablolarını kontrol et
+    _debugDatabase();
+  }
+
+  Future<void> _debugDatabase() async {
+    try {
+      await _commentsService.debugDatabaseTables();
+    } catch (e) {
+      print('Debug database error: $e');
+    }
   }
 
   void _getCurrentUser() {
@@ -78,12 +88,15 @@ class _CommentsViewState extends State<CommentsView> {
         setState(() {
           _currentUsername = doc.data()!['username'];
         });
+        // Username aldıktan sonra data'yı yükle
+        await _loadData();
       } else {
         // Eğer Firestore'da username yoksa fallback olarak email kullan
         final user = FirebaseAuth.instance.currentUser;
         setState(() {
           _currentUsername = user?.email?.split('@')[0] ?? 'Kullanıcı';
         });
+        await _loadData();
       }
     } catch (e) {
       print('Error getting username from Firestore: $e');
@@ -92,6 +105,7 @@ class _CommentsViewState extends State<CommentsView> {
       setState(() {
         _currentUsername = user?.email?.split('@')[0] ?? 'Kullanıcı';
       });
+      await _loadData();
     }
   }
 
@@ -105,8 +119,11 @@ class _CommentsViewState extends State<CommentsView> {
     setState(() => _isLoading = true);
 
     try {
-      // Tüm yorumları yükle
-      final comments = await _commentsService.getComments(widget.movieId);
+      // Yorumları beğeni bilgileriyle birlikte yükle
+      final comments = await _commentsService.getCommentsWithLikes(
+        widget.movieId,
+        _currentUsername,
+      );
 
       // Her yorum için kullanıcının profil fotoğrafını yükle
       final enrichedComments = await Future.wait(
@@ -114,7 +131,6 @@ class _CommentsViewState extends State<CommentsView> {
           try {
             final username = comment['username'];
             if (username != null && username != 'Kullanıcı') {
-              // Username'e göre Firestore'dan kullanıcı bilgilerini al
               final userQuery =
                   await FirebaseFirestore.instance
                       .collection('users')
@@ -147,10 +163,8 @@ class _CommentsViewState extends State<CommentsView> {
         _userComment = userComment;
         _isLoading = false;
 
-        // Filtrelenmiş yorumları güncelle
         _applyLanguageFilter();
 
-        // Eğer kullanıcının yorumu varsa form'u doldur
         if (userComment != null) {
           _commentController.text = userComment['comment'];
           _selectedRating = userComment['rating'];
@@ -196,6 +210,28 @@ class _CommentsViewState extends State<CommentsView> {
         iconTheme: const IconThemeData(color: Colors.white),
         elevation: 0,
         actions: [
+          // Debug için geçici reset butonu
+          IconButton(
+            onPressed: () async {
+              try {
+                await _commentsService.resetDatabase();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Veritabanı sıfırlandı')),
+                );
+                await _loadData();
+              } catch (e) {
+                print('Reset database error: $e');
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Reset hatası: $e'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            },
+            icon: Icon(Icons.refresh),
+            tooltip: 'Reset DB',
+          ),
           // Dil filtresi dropdown
           Container(
             margin: const EdgeInsets.only(right: 8),
@@ -483,6 +519,7 @@ class _CommentsViewState extends State<CommentsView> {
     final isCurrentUser = comment['username'] == _currentUsername;
 
     return _SpoilerCommentCard(
+      commentId: comment['id'],
       username: comment['username'],
       rating: comment['rating'],
       comment: comment['comment'],
@@ -491,8 +528,12 @@ class _CommentsViewState extends State<CommentsView> {
       isCurrentUser: isCurrentUser,
       language: comment['language'] ?? 'TR',
       profileImageUrl: comment['profileImageUrl'],
+      likesCount: comment['likesCount'] ?? 0,
+      isLiked: comment['isLiked'] ?? false,
+      currentUsername: _currentUsername,
       onEdit: isCurrentUser ? _enterEditMode : null,
       onDelete: isCurrentUser ? _showDeleteDialog : null,
+      onLikeChanged: _loadData, // Beğeni değiştiğinde yenile
     );
   }
 
@@ -839,6 +880,7 @@ class _CommentsViewState extends State<CommentsView> {
 
 // Spoiler özellikli yorum kartı - language parametresi eklendi
 class _SpoilerCommentCard extends StatefulWidget {
+  final int commentId;
   final String username;
   final int rating;
   final String comment;
@@ -847,10 +889,15 @@ class _SpoilerCommentCard extends StatefulWidget {
   final bool isCurrentUser;
   final String language;
   final String? profileImageUrl;
+  final int likesCount;
+  final bool isLiked;
+  final String currentUsername;
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
+  final VoidCallback? onLikeChanged;
 
   const _SpoilerCommentCard({
+    required this.commentId,
     required this.username,
     required this.rating,
     required this.comment,
@@ -859,16 +906,145 @@ class _SpoilerCommentCard extends StatefulWidget {
     required this.isCurrentUser,
     required this.language,
     this.profileImageUrl,
+    required this.likesCount,
+    required this.isLiked,
+    required this.currentUsername,
     this.onEdit,
     this.onDelete,
+    this.onLikeChanged,
   });
 
   @override
   State<_SpoilerCommentCard> createState() => _SpoilerCommentCardState();
 }
 
-class _SpoilerCommentCardState extends State<_SpoilerCommentCard> {
+class _SpoilerCommentCardState extends State<_SpoilerCommentCard>
+    with SingleTickerProviderStateMixin {
   bool _isRevealed = false;
+  bool _isLikeLoading = false;
+
+  // Local state için beğeni bilgileri
+  late bool _isLiked;
+  late int _likesCount;
+
+  late AnimationController _animationController;
+  late Animation<double> _scaleAnimation;
+  final CommentsService _commentsService = CommentsService();
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Initial state'i widget'tan al
+    _isLiked = widget.isLiked;
+    _likesCount = widget.likesCount;
+
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 200),
+      vsync: this,
+    );
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.2).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void didUpdateWidget(_SpoilerCommentCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Widget güncellendiğinde local state'i güncelle
+    if (oldWidget.isLiked != widget.isLiked ||
+        oldWidget.likesCount != widget.likesCount) {
+      setState(() {
+        _isLiked = widget.isLiked;
+        _likesCount = widget.likesCount;
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _toggleLike() async {
+    if (_isLikeLoading || widget.isCurrentUser) return;
+
+    setState(() => _isLikeLoading = true);
+
+    // Optimistic update - UI'ı hemen güncelle
+    final previousLiked = _isLiked;
+    final previousCount = _likesCount;
+
+    setState(() {
+      _isLiked = !_isLiked;
+      _likesCount = _isLiked ? _likesCount + 1 : _likesCount - 1;
+    });
+
+    try {
+      bool success;
+      if (previousLiked) {
+        success = await _commentsService.unlikeComment(
+          widget.commentId,
+          widget.currentUsername,
+        );
+      } else {
+        success = await _commentsService.likeComment(
+          widget.commentId,
+          widget.currentUsername,
+          widget.username,
+        );
+
+        if (success && !previousLiked) {
+          // Animasyon çal
+          await _animationController.forward();
+          await _animationController.reverse();
+        }
+      }
+
+      if (!success) {
+        // İşlem başarısızsa eski haline döndür
+        setState(() {
+          _isLiked = previousLiked;
+          _likesCount = previousCount;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Beğeni işlemi başarısız oldu'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      } else {
+        // Başarılıysa parent'ı bilgilendir (opsiyonel - daha tutarlı olması için)
+        if (widget.onLikeChanged != null) {
+          // 1 saniye bekle ki kullanıcı değişikliği görsün
+          Future.delayed(Duration(seconds: 1), () {
+            if (mounted) {
+              widget.onLikeChanged!();
+            }
+          });
+        }
+      }
+    } catch (e) {
+      print('Error toggling like: $e');
+
+      // Hata durumunda eski haline döndür
+      setState(() {
+        _isLiked = previousLiked;
+        _likesCount = previousCount;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Beğeni işlemi sırasında hata oluştu'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() => _isLikeLoading = false);
+    }
+  }
 
   // Dil kodlarını emoji'ye çevir
   String _getLanguageFlag(String langCode) {
@@ -960,9 +1136,7 @@ class _SpoilerCommentCardState extends State<_SpoilerCommentCard> {
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
-                              color:
-                                  AppTheme
-                                      .primaryRed, // Tıklanabilir olduğunu göstermek için
+                              color: AppTheme.primaryRed,
                               decoration: TextDecoration.underline,
                             ),
                           ),
@@ -1176,6 +1350,121 @@ class _SpoilerCommentCardState extends State<_SpoilerCommentCard> {
                     color: AppTheme.darkGrey,
                     height: 1.4,
                   ),
+                ),
+
+                // Beğeni bölümü
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    const Spacer(),
+                    // Beğeni butonu (kendi yorumu değilse)
+                    if (!widget.isCurrentUser)
+                      GestureDetector(
+                        onTap: _isLikeLoading ? null : _toggleLike,
+                        child: AnimatedBuilder(
+                          animation: _scaleAnimation,
+                          builder: (context, child) {
+                            return Transform.scale(
+                              scale: _scaleAnimation.value,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color:
+                                      _isLiked
+                                          ? AppTheme.primaryRed.withOpacity(0.1)
+                                          : Colors.grey.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                    color:
+                                        _isLiked
+                                            ? AppTheme.primaryRed
+                                            : Colors.grey,
+                                    width: _isLiked ? 2 : 1,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (_isLikeLoading)
+                                      SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: AppTheme.primaryRed,
+                                        ),
+                                      )
+                                    else
+                                      Icon(
+                                        _isLiked
+                                            ? Icons.favorite
+                                            : Icons.favorite_border,
+                                        size: 16,
+                                        color:
+                                            _isLiked
+                                                ? AppTheme.primaryRed
+                                                : Colors.grey,
+                                      ),
+                                    if (_likesCount > 0) ...[
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        _likesCount.toString(),
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w500,
+                                          color:
+                                              _isLiked
+                                                  ? AppTheme.primaryRed
+                                                  : Colors.grey,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      )
+                    else if (_likesCount > 0)
+                      // Kendi yorumu için sadece sayı göster
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryRed.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: AppTheme.primaryRed.withOpacity(0.3),
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.favorite,
+                              size: 16,
+                              color: AppTheme.primaryRed,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              _likesCount.toString(),
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: AppTheme.primaryRed,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
                 ),
               ],
             ),

@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:async';
@@ -7,6 +9,8 @@ import '../services/profile_service.dart';
 import '../widgets/optimized_video_player.dart';
 import '../theme/app_theme.dart';
 import 'swipe_view_constants.dart';
+import '../views/notification_view.dart';
+import '../services/notification_service.dart';
 
 class SwipeView extends StatefulWidget {
   const SwipeView({super.key});
@@ -589,6 +593,36 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
     }
   }
 
+  Stream<int> _getUnreadNotificationsStream() async* {
+    final notificationService = NotificationService();
+    while (true) {
+      try {
+        final user = FirebaseAuth.instance.currentUser;
+        if (user != null) {
+          final doc =
+              await FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(user.uid)
+                  .get();
+
+          if (doc.exists && doc.data()?['username'] != null) {
+            final username = doc.data()!['username'];
+            final count = await notificationService.getUnreadNotificationsCount(
+              username,
+            );
+            yield count;
+          }
+        }
+      } catch (e) {
+        print('Error getting unread notifications count: $e');
+        yield 0;
+      }
+      await Future.delayed(
+        const Duration(seconds: 30),
+      ); // 30 saniyede bir güncelle
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
@@ -696,6 +730,53 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
         centerTitle: true,
         backgroundColor: AppTheme.primaryRed,
         actions: [
+          // Bildirim butonu
+          StreamBuilder<int>(
+            stream: _getUnreadNotificationsStream(),
+            builder: (context, snapshot) {
+              final unreadCount = snapshot.data ?? 0;
+              return Stack(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.notifications),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const NotificationView(),
+                        ),
+                      );
+                    },
+                  ),
+                  if (unreadCount > 0)
+                    Positioned(
+                      right: 8,
+                      top: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 16,
+                          minHeight: 16,
+                        ),
+                        child: Text(
+                          unreadCount > 99 ? '99+' : unreadCount.toString(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
           Semantics(
             label: 'Browse Films',
             child: IconButton(

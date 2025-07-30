@@ -16,11 +16,95 @@ class CommentsService {
           'language': comment['language'] ?? 'TR',
           'date': _formatDate(comment['createdAt']),
           'createdAt': comment['createdAt'],
+          'likesCount': 0, // Bu aşağıda güncellenecek
+          'isLiked': false, // Bu aşağıda güncellenecek
         };
       }).toList();
     } catch (e) {
       print('Error getting comments: $e');
       return [];
+    }
+  }
+
+  // Yorumları beğeni bilgileriyle birlikte getir
+  Future<List<Map<String, dynamic>>> getCommentsWithLikes(
+    int movieId,
+    String currentUsername,
+  ) async {
+    try {
+      final comments = await _databaseService.getComments(movieId);
+
+      final enrichedComments = await Future.wait(
+        comments.map((comment) async {
+          final commentId = comment['id'] as int;
+          final likesCount = await _databaseService.getCommentLikesCount(
+            commentId,
+          );
+          final isLiked = await _databaseService.isCommentLiked(
+            commentId,
+            currentUsername,
+          );
+
+          return {
+            'id': comment['id'],
+            'username': comment['username'],
+            'rating': comment['rating'],
+            'comment': comment['comment'],
+            'isSpoiler': comment['isSpoiler'] == 1,
+            'language': comment['language'] ?? 'TR',
+            'date': _formatDate(comment['createdAt']),
+            'createdAt': comment['createdAt'],
+            'likesCount': likesCount,
+            'isLiked': isLiked,
+          };
+        }).toList(),
+      );
+
+      return enrichedComments;
+    } catch (e) {
+      print('Error getting comments with likes: $e');
+      return [];
+    }
+  }
+
+  // Yorumu beğen
+  Future<bool> likeComment(
+    int commentId,
+    String currentUsername,
+    String commentOwnerUsername,
+  ) async {
+    try {
+      final success = await _databaseService.likeComment(
+        commentId,
+        currentUsername,
+      );
+
+      if (success && currentUsername != commentOwnerUsername) {
+        // Bildirim gönder
+        await _databaseService.addNotification(
+          toUsername: commentOwnerUsername,
+          fromUsername: currentUsername,
+          type: 'comment_like',
+          title: 'Yorumunuz beğenildi',
+          message: '$currentUsername yorumunuzu beğendi',
+          data: commentId.toString(),
+        );
+      }
+
+      return success;
+    } catch (e) {
+      print('Error liking comment: $e');
+      return false;
+    }
+  }
+
+  // Yorumu beğenmeyi kaldır
+  Future<bool> unlikeComment(int commentId, String currentUsername) async {
+    try {
+      return await _databaseService.unlikeComment(commentId, currentUsername);
+    } catch (e) {
+      print('Error unliking comment: $e');
+      return false;
     }
   }
 
@@ -139,11 +223,77 @@ class CommentsService {
           'language': comment['language'] ?? 'TR',
           'date': _formatDate(comment['createdAt']),
           'createdAt': comment['createdAt'],
+          'likesCount': 0, // Bu aşağıda güncellenecek
+          'isLiked': false, // Bu sadece viewing user için geçerli
         };
       }).toList();
     } catch (e) {
       print('Error getting user comments: $e');
       return [];
+    }
+  }
+
+  // Belirli bir kullanıcının yorumlarını beğeni bilgileriyle birlikte getir
+  Future<List<Map<String, dynamic>>> getUserCommentsWithLikes(
+    String username,
+    String? viewingUsername,
+  ) async {
+    try {
+      final comments = await _databaseService.getUserComments(username);
+
+      final enrichedComments = await Future.wait(
+        comments.map((comment) async {
+          final commentId = comment['id'] as int;
+          final likesCount = await _databaseService.getCommentLikesCount(
+            commentId,
+          );
+          final isLiked =
+              viewingUsername != null
+                  ? await _databaseService.isCommentLiked(
+                    commentId,
+                    viewingUsername,
+                  )
+                  : false;
+
+          return {
+            'id': comment['id'],
+            'movieId': comment['movieId'],
+            'username': comment['username'],
+            'rating': comment['rating'],
+            'comment': comment['comment'],
+            'isSpoiler': comment['isSpoiler'] == 1,
+            'language': comment['language'] ?? 'TR',
+            'date': _formatDate(comment['createdAt']),
+            'createdAt': comment['createdAt'],
+            'likesCount': likesCount,
+            'isLiked': isLiked,
+          };
+        }).toList(),
+      );
+
+      return enrichedComments;
+    } catch (e) {
+      print('Error getting user comments with likes: $e');
+      return [];
+    }
+  }
+
+  // Debug metodu
+  Future<void> debugDatabaseTables() async {
+    try {
+      await _databaseService.debugDatabaseTables();
+    } catch (e) {
+      print('CommentsService debug error: $e');
+    }
+  }
+
+  // Reset metodu
+  Future<void> resetDatabase() async {
+    try {
+      await _databaseService.resetDatabase();
+    } catch (e) {
+      print('CommentsService reset error: $e');
+      rethrow;
     }
   }
 

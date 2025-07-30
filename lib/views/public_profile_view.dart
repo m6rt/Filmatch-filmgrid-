@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // Bu import'u ekleyelim
+import 'dart:convert'; // Bu import'u da ekleyelim
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user_profile.dart';
 import '../models/movie.dart';
 import '../services/profile_service.dart';
+import '../services/comments_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/movie_detail_modal.dart';
 
@@ -18,83 +23,196 @@ class PublicProfileView extends StatefulWidget {
 
 class _PublicProfileViewState extends State<PublicProfileView> {
   final ProfileService _profileService = ProfileService();
+  final CommentsService _commentsService = CommentsService();
 
   UserProfile? _userProfile;
   List<Movie> _userFavorites = [];
   List<Movie> _userWatchlist = [];
   List<Map<String, dynamic>> _userComments = [];
-
   bool _isLoading = true;
   String? _error;
+  String _currentUsername = '';
 
   @override
   void initState() {
     super.initState();
-    _loadUserProfile();
+    _getCurrentUser();
+    _loadUserData();
   }
 
-  Future<void> _loadUserProfile() async {
-    setState(() => _isLoading = true);
-
+  Future<void> _getCurrentUser() async {
     try {
-      // Eğer user objesi direkt geldiyse onu kullan
-      if (widget.user != null) {
-        _userProfile = widget.user;
-        final username = widget.user!.username;
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final doc =
+            await FirebaseFirestore.instance
+                .collection('users')
+                .doc(user.uid)
+                .get();
 
-        // Kullanıcının verilerini yükle
-        await Future.wait([
-          _loadUserFavorites(username),
-          _loadUserWatchlist(username),
-          _loadUserComments(username),
-        ]);
-      }
-      // Eğer sadece username geldiyse profili yükle
-      else if (widget.username != null) {
-        final profile = await _profileService.getUserProfile(widget.username!);
-        if (profile != null) {
-          _userProfile = profile;
-
-          // Kullanıcının verilerini yükle
-          await Future.wait([
-            _loadUserFavorites(widget.username!),
-            _loadUserWatchlist(widget.username!),
-            _loadUserComments(widget.username!),
-          ]);
-        } else {
-          _error = 'Kullanıcı bulunamadı';
+        if (doc.exists && doc.data()?['username'] != null) {
+          setState(() {
+            _currentUsername = doc.data()!['username'];
+          });
         }
-      } else {
-        _error = 'Geçersiz kullanıcı bilgisi';
       }
     } catch (e) {
-      _error = 'Profil yüklenirken hata oluştu: $e';
-    } finally {
-      setState(() => _isLoading = false);
+      print('Error getting current user: $e');
     }
   }
 
-  Future<void> _loadUserFavorites(String username) async {
-    try {
-      _userFavorites = await _profileService.getUserPublicFavorites(username);
-    } catch (e) {
-      print('Favori filmler yüklenirken hata: $e');
+  // Eksik metodu ekleyelim
+  Future<void> _loadUserProfile() async {
+    final args = ModalRoute.of(context)?.settings.arguments;
+    String? targetUsername;
+
+    if (args is String) {
+      targetUsername = args;
+    } else if (args is Map<String, dynamic>) {
+      targetUsername = args['username'] as String?;
+    }
+
+    if (targetUsername != null) {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+
+      try {
+        final userProfile = await _profileService.getUserProfileByUsername(
+          targetUsername,
+        );
+        if (userProfile != null) {
+          setState(() {
+            _userProfile = userProfile;
+          });
+          await _loadUserData();
+        } else {
+          setState(() {
+            _error = 'Kullanıcı bulunamadı';
+            _isLoading = false;
+          });
+        }
+      } catch (e) {
+        setState(() {
+          _error = 'Kullanıcı yüklenirken hata oluştu: $e';
+          _isLoading = false;
+        });
+      }
     }
   }
 
-  Future<void> _loadUserWatchlist(String username) async {
+  Future<void> _loadUserData() async {
+    if (_userProfile == null) {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+
+      try {
+        UserProfile? userProfile;
+
+        if (widget.user != null) {
+          userProfile = widget.user;
+        } else if (widget.username != null) {
+          userProfile = await _profileService.getUserProfileByUsername(
+            widget.username!,
+          );
+        }
+
+        if (userProfile == null) {
+          setState(() {
+            _error = 'Kullanıcı bulunamadı';
+            _isLoading = false;
+          });
+          return;
+        }
+
+        setState(() {
+          _userProfile = userProfile;
+        });
+      } catch (e) {
+        setState(() {
+          _error = 'Veri yüklenirken hata oluştu: $e';
+          _isLoading = false;
+        });
+        return;
+      }
+    }
+
     try {
-      _userWatchlist = await _profileService.getUserPublicWatchlist(username);
+      // Favori filmleri yükle
+      List<Movie> favorites = [];
+      if (_userProfile!.isFavoritesPublic &&
+          _userProfile!.favoriteMovies.isNotEmpty) {
+        favorites = await _profileService.getMoviesByIds(
+          _userProfile!.favoriteMovies,
+        );
+      }
+
+      // İzleme listesini yükle
+      List<Movie> watchlist = [];
+      if (_userProfile!.watchlist.isNotEmpty) {
+        watchlist = await _profileService.getMoviesByIds(
+          _userProfile!.watchlist,
+        );
+      }
+
+      // Kullanıcının yorumlarını film bilgileriyle birlikte yükle
+      final comments = await _commentsService.getUserCommentsWithLikes(
+        _userProfile!.username,
+        _currentUsername.isNotEmpty ? _currentUsername : null,
+      );
+
+      // Her yorum için film bilgisini yükle
+      final enrichedComments = await Future.wait(
+        comments.map((comment) async {
+          try {
+            final movieId = comment['movieId'] as int;
+            final movie = await _getMovieById(movieId);
+            comment['movie'] = movie;
+          } catch (e) {
+            print('Error loading movie for comment: $e');
+            comment['movie'] = null;
+          }
+          return comment;
+        }).toList(),
+      );
+
+      setState(() {
+        _userFavorites = favorites;
+        _userWatchlist = watchlist;
+        _userComments = enrichedComments;
+        _isLoading = false;
+      });
     } catch (e) {
-      print('İzleme listesi yüklenirken hata: $e');
+      setState(() {
+        _error = 'Veri yüklenirken hata oluştu: $e';
+        _isLoading = false;
+      });
     }
   }
 
-  Future<void> _loadUserComments(String username) async {
+  // Film bilgisini JSON'dan getir
+  Future<Movie?> _getMovieById(int movieId) async {
     try {
-      _userComments = await _profileService.getUserComments(username);
+      final String jsonString = await rootBundle.loadString(
+        'assets/movies_database.json',
+      );
+      final List<dynamic> jsonList = json.decode(jsonString);
+
+      final movieJson = jsonList.firstWhere(
+        (json) => json['id'] == movieId,
+        orElse: () => null,
+      );
+
+      if (movieJson != null) {
+        return Movie.fromJson(movieJson);
+      }
+      return null;
     } catch (e) {
-      print('Yorumlar yüklenirken hata: $e');
+      print('Error getting movie by id: $e');
+      return null;
     }
   }
 
@@ -242,8 +360,8 @@ class _PublicProfileViewState extends State<PublicProfileView> {
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                           colors: [
-                            Colors.white.withOpacity(0.2),
-                            Colors.white.withOpacity(0.4)
+                            Colors.white.withOpacity(0.25),
+                            Colors.white.withOpacity(0.15),
                           ],
                         ),
                         borderRadius: BorderRadius.circular(16),
@@ -273,7 +391,7 @@ class _PublicProfileViewState extends State<PublicProfileView> {
                                 child: Icon(
                                   Icons.person_outline,
                                   size: 18,
-                                  color: AppTheme.primaryRed,
+                                  color: Colors.white,
                                 ),
                               ),
                               SizedBox(width: 12),
@@ -296,7 +414,7 @@ class _PublicProfileViewState extends State<PublicProfileView> {
                               color: Colors.white.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: AppTheme.primaryRed.withOpacity(0.2),
+                                color: Colors.white.withOpacity(0.2),
                                 width: 1,
                               ),
                             ),
@@ -320,7 +438,20 @@ class _PublicProfileViewState extends State<PublicProfileView> {
                   // İstatistikler
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [],
+                    children: [
+                      _buildStatCard(
+                        'Favoriler',
+                        _userFavorites.length.toString(),
+                      ),
+                      _buildStatCard(
+                        'İzleme Listesi',
+                        _userWatchlist.length.toString(),
+                      ),
+                      _buildStatCard(
+                        'Yorumlar',
+                        _userComments.length.toString(),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -565,10 +696,20 @@ class _PublicProfileViewState extends State<PublicProfileView> {
               size: 64,
               color: AppTheme.secondaryGrey,
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             Text(
-              'Henüz yorum yok',
-              style: TextStyle(fontSize: 16, color: AppTheme.secondaryGrey),
+              'Henüz yorum yapılmamış',
+              style: TextStyle(
+                fontSize: 18,
+                color: AppTheme.secondaryGrey,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Bu kullanıcı henüz hiçbir filme yorum yapmamış',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14, color: AppTheme.secondaryGrey),
             ),
           ],
         ),
@@ -580,45 +721,241 @@ class _PublicProfileViewState extends State<PublicProfileView> {
       itemCount: _userComments.length,
       itemBuilder: (context, index) {
         final comment = _userComments[index];
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    ...List.generate(
-                      5,
-                      (starIndex) => Icon(
-                        starIndex < ((comment['rating'] ?? 0) / 2)
-                            ? Icons.star
-                            : Icons.star_border,
-                        size: 16,
-                        color: Colors.amber,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      comment['date']?.toString() ?? '',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppTheme.secondaryGrey,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  comment['comment']?.toString() ?? '',
-                  style: const TextStyle(fontSize: 14),
-                ),
-              ],
-            ),
-          ),
-        );
+        return _buildCommentCard(comment);
       },
     );
+  }
+
+  Widget _buildCommentCard(Map<String, dynamic> comment) {
+    final Movie? movie = comment['movie'] as Movie?;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Film bilgisi ve rating - tıklanabilir
+            GestureDetector(
+              onTap: movie != null ? () => _showMovieDetails(movie) : null,
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryRed.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: AppTheme.primaryRed.withOpacity(0.3),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    // Film posteri (küçük)
+                    if (movie?.posterUrl.isNotEmpty == true)
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: Image.network(
+                          movie!.posterUrl,
+                          width: 40,
+                          height: 60,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              width: 40,
+                              height: 60,
+                              color: AppTheme.primaryRed,
+                              child: Icon(
+                                Icons.movie,
+                                color: Colors.white,
+                                size: 20,
+                              ),
+                            );
+                          },
+                        ),
+                      )
+                    else
+                      Container(
+                        width: 40,
+                        height: 60,
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryRed,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Icon(Icons.movie, color: Colors.white, size: 20),
+                      ),
+
+                    SizedBox(width: 12),
+
+                    // Film adı ve yıl
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            movie?.title ?? 'Film bulunamadı',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.darkGrey,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          // BURADA releaseDate KISMI KALDIRILDI
+                          SizedBox(height: 8),
+                          // Rating
+                          Row(
+                            children: [
+                              ...List.generate(
+                                5,
+                                (index) => Icon(
+                                  index < (comment['rating'] / 2)
+                                      ? Icons.star
+                                      : Icons.star_border,
+                                  size: 16,
+                                  color: Colors.amber,
+                                ),
+                              ),
+                              SizedBox(width: 8),
+                              Text(
+                                '${comment['rating']}/10',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.primaryRed,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Tıklanabilir göstergesi
+                    if (movie != null)
+                      Icon(
+                        Icons.arrow_forward_ios,
+                        size: 16,
+                        color: AppTheme.primaryRed,
+                      ),
+                  ],
+                ),
+              ),
+            ),
+
+            SizedBox(height: 12),
+
+            // Yorum metni
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color:
+                    comment['isSpoiler']
+                        ? AppTheme.primaryRed.withOpacity(0.1)
+                        : Colors.grey.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border:
+                    comment['isSpoiler']
+                        ? Border.all(
+                          color: AppTheme.primaryRed.withOpacity(0.3),
+                        )
+                        : null,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (comment['isSpoiler'])
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.warning,
+                          size: 16,
+                          color: AppTheme.primaryRed,
+                        ),
+                        SizedBox(width: 4),
+                        Text(
+                          'SPOILER',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.primaryRed,
+                          ),
+                        ),
+                      ],
+                    ),
+                  if (comment['isSpoiler']) SizedBox(height: 8),
+                  Text(
+                    comment['comment'],
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppTheme.darkGrey,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            SizedBox(height: 12),
+
+            // Alt bilgiler
+            Row(
+              children: [
+                // Dil
+                Text(
+                  _getLanguageFlag(comment['language']),
+                  style: TextStyle(fontSize: 16),
+                ),
+                SizedBox(width: 8),
+                Text(
+                  comment['date'],
+                  style: TextStyle(fontSize: 12, color: AppTheme.secondaryGrey),
+                ),
+                Spacer(),
+                // Beğeni sayısı
+                if (comment['likesCount'] > 0)
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.favorite,
+                        size: 16,
+                        color: AppTheme.primaryRed,
+                      ),
+                      SizedBox(width: 4),
+                      Text(
+                        comment['likesCount'].toString(),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.primaryRed,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _getLanguageFlag(String langCode) {
+    const languageFlags = {
+      'TR': '🇹🇷',
+      'EN': '🇺🇸',
+      'DE': '🇩🇪',
+      'FR': '🇫🇷',
+      'ES': '🇪🇸',
+      'IT': '🇮🇹',
+      'RU': '🇷🇺',
+      'JA': '🇯🇵',
+      'KO': '🇰🇷',
+      'ZH': '🇨🇳',
+    };
+    return languageFlags[langCode] ?? '🌍';
   }
 }

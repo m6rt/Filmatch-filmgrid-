@@ -7,7 +7,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/user_profile.dart';
 import '../models/movie.dart';
-import 'comments_service.dart';
+import '../services/comments_service.dart';
 import 'batch_optimized_movie_service.dart';
 
 class ProfileService {
@@ -539,29 +539,50 @@ class ProfileService {
     }
   }
 
+  // Kullanıcının yorumlarını getir
   Future<List<Map<String, dynamic>>> getUserComments(String username) async {
     try {
-      final querySnapshot =
-          await _firestore
-              .collection('comments')
-              .where('username', isEqualTo: username)
-              .orderBy('timestamp', descending: true)
-              .limit(50)
-              .get();
-
-      return querySnapshot.docs.map((doc) {
-        final data = doc.data();
-        return {
-          'id': doc.id,
-          'comment': data['comment'] ?? '',
-          'rating': data['rating'] ?? 0,
-          'date': data['date'] ?? '',
-          'movieId': data['movieId'] ?? '',
-          'isSpoiler': data['isSpoiler'] ?? false,
-        };
-      }).toList();
+      final commentsService = CommentsService();
+      return await commentsService.getUserComments(username);
     } catch (e) {
       print('Error getting user comments: $e');
+      return [];
+    }
+  }
+
+  // Film ID'lerini Movie objelerine çevir (JSON dosyasından)
+  Future<List<Movie>> getMoviesByIds(List<String> movieIds) async {
+    if (movieIds.isEmpty) return [];
+
+    try {
+      // Local JSON'dan tüm filmleri yükle
+      final String jsonString = await rootBundle.loadString(
+        'assets/movies_database.json',
+      );
+      final List<dynamic> jsonList = json.decode(jsonString);
+      final List<Movie> allMovies =
+          jsonList.map((json) => Movie.fromJson(json)).toList();
+
+      final List<Movie> requestedMovies = [];
+
+      // Movie ID'leri int'e çevir ve eşleştir
+      for (String movieIdStr in movieIds) {
+        try {
+          final int movieId = int.parse(movieIdStr);
+          final movie = allMovies.firstWhere(
+            (m) => m.id == movieId,
+            orElse: () => throw Exception('Movie not found'),
+          );
+          requestedMovies.add(movie);
+        } catch (e) {
+          print('Error finding movie $movieIdStr: $e');
+          // Bu filmi atla, diğerlerini yüklemeye devam et
+        }
+      }
+
+      return requestedMovies;
+    } catch (e) {
+      print('Error getting movies by ids: $e');
       return [];
     }
   }
