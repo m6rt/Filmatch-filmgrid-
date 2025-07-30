@@ -230,34 +230,97 @@ class _PublicProfileViewState extends State<PublicProfileView> {
                       ),
                     ),
 
-                  // Bio (varsa)
+                  // Bio (varsa) - Güncellenmiş UI
                   if (_userProfile!.bio.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      _userProfile!.bio,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Colors.white70,
+                    const SizedBox(height: 20),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(20),
+                      margin: const EdgeInsets.symmetric(horizontal: 20),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            Colors.white.withOpacity(0.2),
+                            Colors.white.withOpacity(0.4)
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.4),
+                          width: 1.5,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Icon(
+                                  Icons.person_outline,
+                                  size: 18,
+                                  color: AppTheme.primaryRed,
+                                ),
+                              ),
+                              SizedBox(width: 12),
+                              Text(
+                                'Hakkında',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                  fontFamily: "PlayfairDisplay",
+                                ),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: 12),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: AppTheme.primaryRed.withOpacity(0.2),
+                                width: 1,
+                              ),
+                            ),
+                            child: Text(
+                              _userProfile!.bio,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                color: Colors.white,
+                                height: 1.4,
+                              ),
+                              textAlign: TextAlign.left,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
 
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 20),
 
                   // İstatistikler
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _buildStatCard('Yorum', _userComments.length.toString()),
-                      _buildStatCard('Film', _userWatchlist.length.toString()),
-                      _buildStatCard(
-                        'Favori',
-                        _userFavorites.length.toString(),
-                      ),
-                    ],
+                    children: [],
                   ),
                 ],
               ),

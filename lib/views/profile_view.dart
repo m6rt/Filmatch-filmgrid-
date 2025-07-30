@@ -482,6 +482,77 @@ class _ProfileViewState extends State<ProfileView>
     }
   }
 
+  Future<void> _editBio() async {
+    if (_userProfile == null) return;
+
+    final TextEditingController bioController = TextEditingController(
+      text: _userProfile!.bio,
+    );
+
+    final result = await showDialog<String>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: Text(
+              'Biografi Düzenle',
+              style: TextStyle(
+                fontFamily: "PlayfairDisplay",
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            content: TextField(
+              controller: bioController,
+              maxLines: 3,
+              maxLength: 150,
+              decoration: InputDecoration(
+                hintText: 'Kendini tanıt...',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: AppTheme.primaryRed),
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text('İptal'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, bioController.text),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryRed,
+                  foregroundColor: Colors.white,
+                ),
+                child: Text('Kaydet'),
+              ),
+            ],
+          ),
+    );
+
+    if (result != null) {
+      setState(() => _isUpdating = true);
+
+      try {
+        final updatedProfile = _userProfile!.copyWith(bio: result);
+        final success = await _profileService.updateProfile(updatedProfile);
+
+        if (success) {
+          setState(() => _userProfile = updatedProfile);
+          _showSuccessSnackBar('Biografi güncellendi');
+        } else {
+          _showErrorSnackBar('Biografi güncellenemedi');
+        }
+      } catch (e) {
+        _showErrorSnackBar('Biografi güncellenirken hata oluştu');
+      } finally {
+        setState(() => _isUpdating = false);
+      }
+    }
+  }
+
   void _showErrorSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: Colors.red),
@@ -810,6 +881,7 @@ class _ProfileViewState extends State<ProfileView>
   Widget _buildUserInfo(bool isSmallScreen) {
     final titleFontSize = isSmallScreen ? 20.0 : 24.0;
     final emailFontSize = isSmallScreen ? 14.0 : 16.0;
+    final bioFontSize = isSmallScreen ? 13.0 : 15.0;
     final dateFontSize = isSmallScreen ? 12.0 : 14.0;
     final spacing = isSmallScreen ? 6.0 : 8.0;
 
@@ -843,7 +915,109 @@ class _ProfileViewState extends State<ProfileView>
           textAlign: TextAlign.center,
         ),
 
-        SizedBox(height: isSmallScreen ? 12.0 : 16.0),
+        SizedBox(height: spacing),
+
+        // Biografi bölümü - Güncellenmiş UI
+        Container(
+          width: double.infinity,
+          padding: EdgeInsets.all(isSmallScreen ? 16.0 : 20.0),
+          margin: EdgeInsets.symmetric(horizontal: isSmallScreen ? 20.0 : 32.0),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.white.withOpacity(0.95),
+                Colors.white.withOpacity(0.85),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+            border: Border.all(
+              color: AppTheme.primaryRed.withOpacity(0.2),
+              width: 1.5,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryRed.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      Icons.edit_note,
+                      size: isSmallScreen ? 18.0 : 20.0,
+                      color: AppTheme.primaryRed,
+                    ),
+                  ),
+                  SizedBox(width: 12),
+                  Text(
+                    'Biografi',
+                    style: TextStyle(
+                      fontSize: isSmallScreen ? 16.0 : 18.0,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.primaryRed,
+                      fontFamily: "PlayfairDisplay",
+                    ),
+                  ),
+                  const Spacer(),
+                  Icon(
+                    Icons.touch_app,
+                    size: isSmallScreen ? 16.0 : 18.0,
+                    color: AppTheme.secondaryGrey,
+                  ),
+                ],
+              ),
+              SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.grey.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Colors.grey.withOpacity(0.2),
+                    width: 1,
+                  ),
+                ),
+                child: GestureDetector(
+                  onTap: _editBio,
+                  child: Text(
+                    _userProfile!.bio.isEmpty
+                        ? 'Kendini tanıt...\nFilm zevkini, hobilerini veya ilgi alanlarını paylaş! 🎬'
+                        : _userProfile!.bio,
+                    style: TextStyle(
+                      fontSize: bioFontSize,
+                      color:
+                          _userProfile!.bio.isEmpty
+                              ? AppTheme.secondaryGrey
+                              : AppTheme.darkGrey,
+                      fontStyle:
+                          _userProfile!.bio.isEmpty
+                              ? FontStyle.italic
+                              : FontStyle.normal,
+                      height: 1.4,
+                    ),
+                    textAlign: TextAlign.left,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        SizedBox(height: isSmallScreen ? 16.0 : 20.0),
 
         Text(
           'Üye olma tarihi: ${_formatDate(_userProfile!.createdAt)}',
@@ -1230,6 +1404,84 @@ class _ProfileViewState extends State<ProfileView>
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildStatsSection() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 16.0),
+      padding: const EdgeInsets.all(20.0),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Colors.white.withOpacity(0.95),
+            Colors.white.withOpacity(0.85),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        border: Border.all(
+          color: AppTheme.primaryRed.withOpacity(0.2),
+          width: 1.5,
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          _buildStatCard(
+            'Favoriler',
+            _userProfile?.favoriteMovies.length.toString() ?? '0',
+          ),
+          Container(
+            width: 1,
+            height: 40,
+            color: AppTheme.secondaryGrey.withOpacity(0.3),
+          ),
+          _buildStatCard(
+            'İzleme Listesi',
+            _userProfile?.watchlist.length.toString() ?? '0',
+          ),
+          Container(
+            width: 1,
+            height: 40,
+            color: AppTheme.secondaryGrey.withOpacity(0.3),
+          ),
+          _buildStatCard('Yorumlar', _userComments.length.toString()),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatCard(String label, String value) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: AppTheme.primaryRed,
+            fontFamily: "PlayfairDisplay",
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: AppTheme.secondaryGrey,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
     );
   }
 
