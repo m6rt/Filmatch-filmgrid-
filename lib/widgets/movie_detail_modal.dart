@@ -208,7 +208,7 @@ class _MovieDetailModalState extends State<MovieDetailModal> {
                                               ? widget.movie.genre.first
                                               : 'Unknown',
                                         ),
-                                        autoPlay: false,
+                                        autoPlay: true,
                                       ),
                                       // Tam ekran butonu
                                       Positioned(

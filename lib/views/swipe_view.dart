@@ -737,16 +737,19 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
               final unreadCount = snapshot.data ?? 0;
               return Stack(
                 children: [
-                  IconButton(
-                    icon: const Icon(Icons.notifications),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const NotificationView(),
-                        ),
-                      );
-                    },
+                  Padding(
+                    padding:  EdgeInsets.symmetric(horizontal:screenWidth *0.005 , vertical: screenHeight*0.01 ),
+                    child: IconButton(
+                      icon: const Icon(Icons.notifications),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const NotificationView(),
+                          ),
+                        );
+                      },
+                    ),
                   ),
                   if (unreadCount > 0)
                     Positioned(
@@ -885,7 +888,7 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
                                                           _getMovieColor(
                                                             _currentMovie!,
                                                           ),
-                                                      autoPlay: false,
+                                                      autoPlay: true,
                                                     ),
                                                     Positioned(
                                                       top: isTablet ? 20 : 16,

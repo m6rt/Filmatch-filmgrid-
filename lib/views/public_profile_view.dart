@@ -797,7 +797,7 @@ class _PublicProfileViewState extends State<PublicProfileView> {
                           Text(
                             movie?.title ?? 'Film bulunamadı',
                             style: TextStyle(
-                              fontSize: 16,
+                               fontSize: 16,
                               fontWeight: FontWeight.bold,
                               color: AppTheme.darkGrey,
                             ),
