@@ -1,4 +1,7 @@
 import 'database_service.dart';
+import 'dart:convert';
+import 'package:flutter/services.dart';
+import 'profile_service.dart';
 
 class CommentsService {
   final DatabaseService _databaseService = DatabaseService();
@@ -161,11 +164,47 @@ class CommentsService {
         isSpoiler: isSpoiler,
         language: language,
       );
+
+      // Takipçilere bildirim gönder
+      try {
+        // Circular import'u önlemek için dinamik import
+        final profileService = ProfileService();
+        final movieTitle = await _getMovieTitle(movieId);
+        await profileService.sendCommentNotificationToFollowers(
+          username,
+          movieId,
+          movieTitle ?? 'Bilinmeyen Film',
+        );
+      } catch (e) {
+        print('Error sending follower notifications: $e');
+        // Bildirim hatası ana işlemi etkilemesin
+      }
+
       return true;
     } catch (e) {
       print('Error adding comment: $e');
       // Hata mesajını üst katmana ilet
       rethrow;
+    }
+  }
+
+  // Film başlığını getir (JSON'dan)
+  Future<String?> _getMovieTitle(int movieId) async {
+    try {
+      final String jsonString = await rootBundle.loadString(
+        'assets/movies_database.json',
+      );
+      final List<dynamic> jsonList = json.decode(jsonString);
+
+      final movieJson = jsonList.firstWhere(
+        (json) => json['id'] == movieId,
+        orElse: () => null,
+      );
+
+      return movieJson?['title'];
+    } catch (e) {
+      print('Error getting movie title: $e');
+      return null;
     }
   }
 

@@ -32,6 +32,9 @@ class _PublicProfileViewState extends State<PublicProfileView> {
   bool _isLoading = true;
   String? _error;
   String _currentUsername = '';
+  bool _isFollowing = false;
+  int _followersCount = 0;
+  int _followingCount = 0;
 
   @override
   void initState() {
@@ -103,44 +106,51 @@ class _PublicProfileViewState extends State<PublicProfileView> {
   }
 
   Future<void> _loadUserData() async {
-    if (_userProfile == null) {
-      setState(() {
-        _isLoading = true;
-        _error = null;
-      });
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
 
-      try {
-        UserProfile? userProfile;
+    try {
+      UserProfile? userProfile;
 
-        if (widget.user != null) {
-          userProfile = widget.user;
-        } else if (widget.username != null) {
-          userProfile = await _profileService.getUserProfileByUsername(
-            widget.username!,
-          );
-        }
+      if (widget.user != null) {
+        // Widget'tan gelen user varsa, onu kullan ama fresh data için yeniden yükle
+        userProfile = await _profileService.getUserProfileByUsername(
+          widget.user!.username,
+        );
+      } else if (widget.username != null) {
+        userProfile = await _profileService.getUserProfileByUsername(
+          widget.username!,
+        );
+      }
 
-        if (userProfile == null) {
-          setState(() {
-            _error = 'Kullanıcı bulunamadı';
-            _isLoading = false;
-          });
-          return;
-        }
-
+      if (userProfile == null) {
         setState(() {
-          _userProfile = userProfile;
-        });
-      } catch (e) {
-        setState(() {
-          _error = 'Veri yüklenirken hata oluştu: $e';
+          _error = 'Kullanıcı bulunamadı';
           _isLoading = false;
         });
         return;
       }
-    }
 
-    try {
+      setState(() {
+        _userProfile = userProfile;
+      });
+
+      // Takip durumunu kontrol et
+      if (_userProfile != null && _currentUsername.isNotEmpty) {
+        final isFollowing = await _profileService.isFollowingUser(
+          _userProfile!.username,
+        );
+
+        setState(() {
+          _isFollowing = isFollowing;
+          // Takip sayılarını profile'dan direkt al
+          _followersCount = _userProfile!.followers.length;
+          _followingCount = _userProfile!.following.length;
+        });
+      }
+
       // Favori filmleri yükle
       List<Movie> favorites = [];
       if (_userProfile!.isFavoritesPublic &&
@@ -269,6 +279,85 @@ class _PublicProfileViewState extends State<PublicProfileView> {
     }
   }
 
+  // Takip et/takipten çıkar fonksiyonu
+  Future<void> _toggleFollow() async {
+    if (_userProfile == null || _currentUsername.isEmpty) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      bool success;
+      if (_isFollowing) {
+        success = await _profileService.unfollowUser(_userProfile!.username);
+        if (success) {
+          setState(() {
+            _isFollowing = false;
+            _followersCount = _followersCount - 1;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${_userProfile!.username} takipten çıkarıldı'),
+              backgroundColor: AppTheme.secondaryGrey,
+            ),
+          );
+        }
+      } else {
+        success = await _profileService.followUser(_userProfile!.username);
+        if (success) {
+          setState(() {
+            _isFollowing = true;
+            _followersCount = _followersCount + 1;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${_userProfile!.username} takip edildi'),
+              backgroundColor: AppTheme.primaryRed,
+            ),
+          );
+        }
+      }
+
+      if (!success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('İşlem başarısız oldu'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      } else {
+        // İşlem başarılı olduysa profili yeniden yükle
+        await _refreshUserProfile();
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Hata oluştu: $e'), backgroundColor: Colors.red),
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  // Kullanıcı profilini yeniden yükle
+  Future<void> _refreshUserProfile() async {
+    if (_userProfile == null) return;
+
+    try {
+      final updatedProfile = await _profileService.getUserProfileByUsername(
+        _userProfile!.username,
+      );
+
+      if (updatedProfile != null) {
+        setState(() {
+          _userProfile = updatedProfile;
+          _followersCount = updatedProfile.followers.length;
+          _followingCount = updatedProfile.following.length;
+        });
+      }
+    } catch (e) {
+      print('Error refreshing user profile: $e');
+    }
+  }
+
   Widget _buildProfileHeader() {
     return Container(
       decoration: BoxDecoration(
@@ -301,9 +390,49 @@ class _PublicProfileViewState extends State<PublicProfileView> {
                       textAlign: TextAlign.center,
                     ),
                   ),
-                  const SizedBox(
-                    width: 48,
-                  ), // IconButton genişliği kadar boşluk
+                  // Takip et butonu (sadece kendi profilin değilse göster)
+                  if (_currentUsername.isNotEmpty &&
+                      _currentUsername != _userProfile!.username)
+                    ElevatedButton(
+                      onPressed: _isLoading ? null : _toggleFollow,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor:
+                            _isFollowing ? Colors.white : Colors.transparent,
+                        foregroundColor:
+                            _isFollowing ? AppTheme.primaryRed : Colors.white,
+                        side: BorderSide(color: Colors.white, width: 1.5),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child:
+                          _isLoading
+                              ? SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color:
+                                      _isFollowing
+                                          ? AppTheme.primaryRed
+                                          : Colors.white,
+                                ),
+                              )
+                              : Text(
+                                _isFollowing ? 'Takipten Çık' : 'Takip Et',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                    )
+                  else
+                    const SizedBox(
+                      width: 48,
+                    ), // IconButton genişliği kadar boşluk
                 ],
               ),
             ),
@@ -401,35 +530,41 @@ class _PublicProfileViewState extends State<PublicProfileView> {
                                   fontSize: 16,
                                   fontWeight: FontWeight.w600,
                                   color: Colors.white,
-                                  fontFamily: "PlayfairDisplay",
                                 ),
+                              ),
+                              Spacer(),
+                              // Takipçi ve takip edilen sayıları
+                              Row(
+                                children: [
+                                  _buildFollowCount('Takipçi', _followersCount),
+                                  SizedBox(width: 16),
+                                  _buildFollowCount('Takip', _followingCount),
+                                ],
                               ),
                             ],
                           ),
-                          SizedBox(height: 12),
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: Colors.white.withOpacity(0.2),
-                                width: 1,
-                              ),
-                            ),
-                            child: Text(
-                              _userProfile!.bio,
-                              style: const TextStyle(
-                                fontSize: 15,
-                                color: Colors.white,
-                                height: 1.4,
-                              ),
-                              textAlign: TextAlign.left,
+                          SizedBox(height: 16),
+                          Text(
+                            _userProfile!.bio,
+                            style: TextStyle(
+                              fontSize: 15,
+                              color: Colors.white.withOpacity(0.95),
+                              height: 1.5,
                             ),
                           ),
                         ],
                       ),
+                    ),
+                  ] else ...[
+                    // Bio yoksa sadece takip sayıları
+                    const SizedBox(height: 20),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _buildFollowCount('Takipçi', _followersCount),
+                        SizedBox(width: 32),
+                        _buildFollowCount('Takip', _followingCount),
+                      ],
                     ),
                   ],
 
@@ -489,6 +624,30 @@ class _PublicProfileViewState extends State<PublicProfileView> {
     );
   }
 
+  Widget _buildFollowCount(String label, int count) {
+    return Column(
+      children: [
+        Text(
+          count.toString(),
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        SizedBox(height: 2),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.white.withOpacity(0.8),
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // Route arguments'ını al
@@ -502,7 +661,12 @@ class _PublicProfileViewState extends State<PublicProfileView> {
         final user = args['user'] as UserProfile?;
 
         if (user != null) {
-          _userProfile = user;
+          // User gelirse de fresh data almak için _loadUserData çağır
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              _loadUserData();
+            }
+          });
         } else if (username != null) {
           // Username ile profil yükle
           _loadUserProfile();
@@ -797,7 +961,7 @@ class _PublicProfileViewState extends State<PublicProfileView> {
                           Text(
                             movie?.title ?? 'Film bulunamadı',
                             style: TextStyle(
-                               fontSize: 16,
+                              fontSize: 16,
                               fontWeight: FontWeight.bold,
                               color: AppTheme.darkGrey,
                             ),

@@ -35,6 +35,8 @@ class _ProfileViewState extends State<ProfileView>
   bool _isUpdating = false;
   DateTime? _lastRefresh;
   String _currentUsername = 'Kullanıcı'; // Gerçek kullanıcı adı
+  int _followersCount = 0;
+  int _followingCount = 0;
 
   // Profil kurulum için gerekli alanlar
   File? _tempProfilePicture;
@@ -61,7 +63,7 @@ class _ProfileViewState extends State<ProfileView>
       });
     } else {
       // Username varsa normal profil yükleme işlemini yap
-      _getCurrentUser();
+      await _getCurrentUser();
       _loadProfile();
     }
   }
@@ -104,7 +106,7 @@ class _ProfileViewState extends State<ProfileView>
       Navigator.pop(context); // Setup dialog'unu kapat
 
       // Profil kurulduktan sonra normal profil yükleme işlemini yap
-      _getCurrentUser();
+      await _getCurrentUser();
       _loadProfile();
 
       ScaffoldMessenger.of(
@@ -275,10 +277,10 @@ class _ProfileViewState extends State<ProfileView>
     );
   }
 
-  void _getCurrentUser() {
+  Future<void> _getCurrentUser() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      _getUsernameFromFirestore(user.uid);
+      await _getUsernameFromFirestore(user.uid);
     }
   }
 
@@ -316,7 +318,7 @@ class _ProfileViewState extends State<ProfileView>
     if (_lastRefresh == null || now.difference(_lastRefresh!).inSeconds > 2) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && !_isLoading) {
-          _loadProfile();
+          _refreshFollowCounts(); // Sadece takip sayılarını yenile
         }
       });
     }
@@ -336,6 +338,23 @@ class _ProfileViewState extends State<ProfileView>
     }
   }
 
+  // Takip sayılarını yenile (diğer sayfalardan dönüldüğünde)
+  Future<void> _refreshFollowCounts() async {
+    if (_userProfile == null) return;
+
+    try {
+      final updatedProfile = await _profileService.getUserProfile();
+      if (updatedProfile != null) {
+        setState(() {
+          _followersCount = updatedProfile.followers.length;
+          _followingCount = updatedProfile.following.length;
+        });
+      }
+    } catch (e) {
+      print('Error refreshing follow counts: $e');
+    }
+  }
+
   Future<void> _loadProfile() async {
     setState(() => _isLoading = true);
     _lastRefresh = DateTime.now();
@@ -345,6 +364,12 @@ class _ProfileViewState extends State<ProfileView>
       if (profile != null) {
         setState(() {
           _userProfile = profile;
+        });
+
+        // Takip sayılarını profile'dan direkt al (Firestore'dan ayrı sorgu yapmak yerine)
+        setState(() {
+          _followersCount = _userProfile!.followers.length;
+          _followingCount = _userProfile!.following.length;
         });
 
         // Load favorite movies
@@ -915,8 +940,18 @@ class _ProfileViewState extends State<ProfileView>
           textAlign: TextAlign.center,
         ),
 
-        SizedBox(height: spacing),
+        SizedBox(height: spacing * 2), // Takip sayıları için daha fazla boşluk
+        // Takipçi ve takip edilen sayıları
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _buildFollowCount('Takipçi', _followersCount),
+            SizedBox(width: 32),
+            _buildFollowCount('Takip', _followingCount),
+          ],
+        ),
 
+        SizedBox(height: spacing * 2), // Bio'dan önce daha fazla boşluk
         // Biografi bölümü - Güncellenmiş UI
         Container(
           width: double.infinity,
@@ -1502,6 +1537,31 @@ class _ProfileViewState extends State<ProfileView>
     ];
 
     return '${date.day} ${months[date.month - 1]} ${date.year}';
+  }
+
+  Widget _buildFollowCount(String label, int count) {
+    return Column(
+      children: [
+        Text(
+          count.toString(),
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: AppTheme.primaryRed,
+            fontFamily: "PlayfairDisplay",
+          ),
+        ),
+        SizedBox(height: 2),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: AppTheme.secondaryGrey,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
+    );
   }
 }
 

@@ -47,7 +47,12 @@ class ProfileService {
         final user = currentUser;
         if (user == null) return null;
 
-        final doc = await _firestore.collection('users').doc(user.uid).get();
+        final doc = await _firestore
+            .collection('users')
+            .doc(user.uid)
+            .get(
+              const GetOptions(source: Source.server), // Cache'i bypass et
+            );
 
         if (doc.exists) {
           return UserProfile.fromFirestore(doc.data()!, user.uid);
@@ -375,12 +380,11 @@ class ProfileService {
   // Diğer kullanıcıların profilini getir
   Future<UserProfile?> getUserProfileByUsername(String username) async {
     try {
-      final querySnapshot =
-          await _firestore
-              .collection('users')
-              .where('username', isEqualTo: username)
-              .limit(1)
-              .get();
+      final querySnapshot = await _firestore
+          .collection('users')
+          .where('username', isEqualTo: username)
+          .limit(1)
+          .get(const GetOptions(source: Source.server)); // Cache'i bypass et
 
       if (querySnapshot.docs.isNotEmpty) {
         final userData = querySnapshot.docs.first.data();
@@ -584,6 +588,240 @@ class ProfileService {
     } catch (e) {
       print('Error getting movies by ids: $e');
       return [];
+    }
+  }
+
+  // TAKIP SİSTEMİ FONKSİYONLARI
+
+  // Kullanıcıyı takip et
+  Future<bool> followUser(String targetUsername) async {
+    final user = currentUser;
+    if (user == null) return false;
+
+    try {
+      // Kendi username'ini al
+      final currentUserDoc =
+          await _firestore.collection('users').doc(user.uid).get();
+      if (!currentUserDoc.exists) return false;
+
+      final currentUsername = currentUserDoc.data()?['username'];
+      if (currentUsername == null) return false;
+
+      // Hedef kullanıcının doc'unu bul
+      final targetUserQuery =
+          await _firestore
+              .collection('users')
+              .where('username', isEqualTo: targetUsername.toLowerCase())
+              .get();
+
+      if (targetUserQuery.docs.isEmpty) return false;
+
+      final targetUserDoc = targetUserQuery.docs.first;
+      final targetUserId = targetUserDoc.id;
+
+      // Batch işlem başlat
+      final batch = _firestore.batch();
+
+      // Kendi following listene ekle
+      batch.update(_firestore.collection('users').doc(user.uid), {
+        'following': FieldValue.arrayUnion([targetUsername.toLowerCase()]),
+        'lastUpdated': DateTime.now().millisecondsSinceEpoch,
+      });
+
+      // Hedef kullanıcının followers listesine ekle
+      batch.update(_firestore.collection('users').doc(targetUserId), {
+        'followers': FieldValue.arrayUnion([currentUsername.toLowerCase()]),
+        'lastUpdated': DateTime.now().millisecondsSinceEpoch,
+      });
+
+      await batch.commit();
+
+      // Bildirim gönder
+      await _sendFollowNotification(currentUsername, targetUsername);
+
+      return true;
+    } catch (e) {
+      print('Error following user: $e');
+      return false;
+    }
+  }
+
+  // Kullanıcıyı takipten çıkar
+  Future<bool> unfollowUser(String targetUsername) async {
+    final user = currentUser;
+    if (user == null) return false;
+
+    try {
+      // Kendi username'ini al
+      final currentUserDoc =
+          await _firestore.collection('users').doc(user.uid).get();
+      if (!currentUserDoc.exists) return false;
+
+      final currentUsername = currentUserDoc.data()?['username'];
+      if (currentUsername == null) return false;
+
+      // Hedef kullanıcının doc'unu bul
+      final targetUserQuery =
+          await _firestore
+              .collection('users')
+              .where('username', isEqualTo: targetUsername.toLowerCase())
+              .get();
+
+      if (targetUserQuery.docs.isEmpty) return false;
+
+      final targetUserDoc = targetUserQuery.docs.first;
+      final targetUserId = targetUserDoc.id;
+
+      // Batch işlem başlat
+      final batch = _firestore.batch();
+
+      // Kendi following listenden çıkar
+      batch.update(_firestore.collection('users').doc(user.uid), {
+        'following': FieldValue.arrayRemove([targetUsername.toLowerCase()]),
+        'lastUpdated': DateTime.now().millisecondsSinceEpoch,
+      });
+
+      // Hedef kullanıcının followers listesinden çıkar
+      batch.update(_firestore.collection('users').doc(targetUserId), {
+        'followers': FieldValue.arrayRemove([currentUsername.toLowerCase()]),
+        'lastUpdated': DateTime.now().millisecondsSinceEpoch,
+      });
+
+      await batch.commit();
+      return true;
+    } catch (e) {
+      print('Error unfollowing user: $e');
+      return false;
+    }
+  }
+
+  // Kullanıcıyı takip ediyor mu kontrol et
+  Future<bool> isFollowingUser(String targetUsername) async {
+    final user = currentUser;
+    if (user == null) return false;
+
+    try {
+      final doc = await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .get(
+            const GetOptions(source: Source.server), // Cache'i bypass et
+          );
+      if (doc.exists) {
+        final following = List<String>.from(doc.data()?['following'] ?? []);
+        return following.contains(targetUsername.toLowerCase());
+      }
+      return false;
+    } catch (e) {
+      print('Error checking follow status: $e');
+      return false;
+    }
+  }
+
+  // Takipçi sayısını getir
+  Future<int> getFollowersCount(String username) async {
+    try {
+      final userQuery = await _firestore
+          .collection('users')
+          .where('username', isEqualTo: username.toLowerCase())
+          .get(const GetOptions(source: Source.server)); // Cache'i bypass et
+
+      if (userQuery.docs.isNotEmpty) {
+        final userData = userQuery.docs.first.data();
+        final followers = List<String>.from(userData['followers'] ?? []);
+        return followers.length;
+      }
+      return 0;
+    } catch (e) {
+      print('Error getting followers count: $e');
+      return 0;
+    }
+  }
+
+  // Takip edilen sayısını getir
+  Future<int> getFollowingCount(String username) async {
+    try {
+      final userQuery = await _firestore
+          .collection('users')
+          .where('username', isEqualTo: username.toLowerCase())
+          .get(const GetOptions(source: Source.server)); // Cache'i bypass et
+
+      if (userQuery.docs.isNotEmpty) {
+        final userData = userQuery.docs.first.data();
+        final following = List<String>.from(userData['following'] ?? []);
+        return following.length;
+      }
+      return 0;
+    } catch (e) {
+      print('Error getting following count: $e');
+      return 0;
+    }
+  }
+
+  // Takip bildirimi gönder
+  Future<void> _sendFollowNotification(
+    String fromUsername,
+    String toUsername,
+  ) async {
+    try {
+      await _firestore.collection('notifications').add({
+        'toUsername': toUsername.toLowerCase(),
+        'fromUsername': fromUsername.toLowerCase(),
+        'type': 'follow',
+        'title': 'Yeni takipçi',
+        'message': '$fromUsername sizi takip etmeye başladı',
+        'data': fromUsername,
+        'isRead': false,
+        'createdAt': DateTime.now().toIso8601String(),
+      });
+    } catch (e) {
+      print('Error sending follow notification: $e');
+    }
+  }
+
+  // Takip edilen kişilerin yorum bildirimlerini gönder
+  Future<void> sendCommentNotificationToFollowers(
+    String username,
+    int movieId,
+    String movieTitle,
+  ) async {
+    try {
+      // Kullanıcının takipçilerini getir
+      final userQuery =
+          await _firestore
+              .collection('users')
+              .where('username', isEqualTo: username.toLowerCase())
+              .get();
+
+      if (userQuery.docs.isEmpty) return;
+
+      final userData = userQuery.docs.first.data();
+      final followers = List<String>.from(userData['followers'] ?? []);
+
+      // Her takipçiye bildirim gönder
+      final batch = _firestore.batch();
+
+      for (final followerUsername in followers) {
+        final notificationRef = _firestore.collection('notifications').doc();
+        batch.set(notificationRef, {
+          'toUsername': followerUsername,
+          'fromUsername': username.toLowerCase(),
+          'type': 'follower_comment',
+          'title': 'Takip ettiğiniz kişi yorum yaptı',
+          'message': '$username "$movieTitle" filmine yorum yaptı',
+          'data': {
+            'movieId': movieId,
+            'movieTitle': movieTitle,
+            'username': username,
+          },
+          'isRead': false,
+          'createdAt': DateTime.now().toIso8601String(),
+        });
+      }
+
+      await batch.commit();
+    } catch (e) {
+      print('Error sending comment notifications to followers: $e');
     }
   }
 }
