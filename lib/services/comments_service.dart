@@ -192,7 +192,7 @@ class CommentsService {
   Future<String?> _getMovieTitle(int movieId) async {
     try {
       final String jsonString = await rootBundle.loadString(
-        'assets/movies_database.json',
+        'assets/movie_database.json',
       );
       final List<dynamic> jsonList = json.decode(jsonString);
 

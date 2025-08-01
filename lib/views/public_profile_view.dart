@@ -207,7 +207,7 @@ class _PublicProfileViewState extends State<PublicProfileView> {
   Future<Movie?> _getMovieById(int movieId) async {
     try {
       final String jsonString = await rootBundle.loadString(
-        'assets/movies_database.json',
+        'assets/movie_database.json',
       );
       final List<dynamic> jsonList = json.decode(jsonString);
 

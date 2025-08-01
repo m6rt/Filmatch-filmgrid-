@@ -64,7 +64,7 @@ class OptimizedMovieRecommendationService {
   Future<void> initializeService() async {
     try {
       final String jsonString = await rootBundle.loadString(
-        'assets/movies_database.json',
+        'assets/movie_database.json',
       );
       final List<dynamic> jsonList = json.decode(jsonString);
 
@@ -122,7 +122,7 @@ class OptimizedMovieRecommendationService {
   Future<void> _loadNextBatch() async {
     try {
       final String jsonString = await rootBundle.loadString(
-        'assets/movies_database.json',
+        'assets/movie_database.json',
       );
       final List<dynamic> jsonList = json.decode(jsonString);
 
