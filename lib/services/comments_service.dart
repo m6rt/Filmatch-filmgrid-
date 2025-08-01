@@ -336,6 +336,48 @@ class CommentsService {
     }
   }
 
+  // Film ortalama puanını hesapla
+  Future<Map<String, dynamic>> getMovieRatingInfo(int movieId) async {
+    try {
+      final comments = await _databaseService.getComments(movieId);
+
+      if (comments.isEmpty) {
+        return {
+          'averageRating': 0.0,
+          'commentCount': 0,
+          'formattedRating': '0.0',
+        };
+      }
+
+      double totalRating = 0.0;
+      int validComments = 0;
+
+      for (final comment in comments) {
+        final rating = comment['rating'];
+        if (rating != null && rating is int && rating > 0) {
+          totalRating += rating;
+          validComments++;
+        }
+      }
+
+      final averageRating =
+          validComments > 0 ? totalRating / validComments : 0.0;
+
+      return {
+        'averageRating': averageRating,
+        'commentCount': validComments,
+        'formattedRating': averageRating.toStringAsFixed(1),
+      };
+    } catch (e) {
+      print('Error calculating movie rating: $e');
+      return {
+        'averageRating': 0.0,
+        'commentCount': 0,
+        'formattedRating': '0.0',
+      };
+    }
+  }
+
   String _formatDate(String isoDate) {
     try {
       final date = DateTime.parse(isoDate);

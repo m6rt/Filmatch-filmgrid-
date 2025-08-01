@@ -6,6 +6,7 @@ import 'dart:async';
 import '../models/movie.dart';
 import '../services/batch_optimized_movie_service.dart';
 import '../services/profile_service.dart';
+import '../services/comments_service.dart';
 import '../widgets/optimized_video_player.dart';
 import '../theme/app_theme.dart';
 import 'swipe_view_constants.dart';
@@ -25,7 +26,15 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
   // Film servisi
   final BatchOptimizedMovieService _movieService = BatchOptimizedMovieService();
   final ProfileService _profileService = ProfileService();
+  final CommentsService _commentsService = CommentsService();
   Movie? _currentMovie;
+
+  // Rating bilgisi için
+  Map<String, dynamic> _currentMovieRating = {
+    'averageRating': 0.0,
+    'commentCount': 0,
+    'formattedRating': '0.0',
+  };
 
   // Video pozisyonunu saklamak için
   Duration? _currentVideoPosition;
@@ -75,6 +84,11 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
       await _filterWatchlistMovies();
 
       _currentMovie = _movieService.currentMovie;
+
+      // İlk filmin rating bilgisini yükle
+      if (_currentMovie != null) {
+        await _loadMovieRating();
+      }
 
       setState(() {
         _isLoading = false;
@@ -271,8 +285,36 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
     // Yeni filmi al
     _currentMovie = _movieService.getNextMovie();
 
+    // Yeni filmin rating bilgisini yükle
+    if (_currentMovie != null) {
+      _loadMovieRating();
+    }
+
     _swipeAnimationController.reset();
     await _fadeAnimationController.forward();
+  }
+
+  // Film rating bilgisini yükle
+  Future<void> _loadMovieRating() async {
+    if (_currentMovie == null) return;
+
+    try {
+      final ratingInfo = await _commentsService.getMovieRatingInfo(
+        _currentMovie!.id,
+      );
+      setState(() {
+        _currentMovieRating = ratingInfo;
+      });
+    } catch (e) {
+      print('Error loading movie rating: $e');
+      setState(() {
+        _currentMovieRating = {
+          'averageRating': 0.0,
+          'commentCount': 0,
+          'formattedRating': '0.0',
+        };
+      });
+    }
   }
 
   void _showFeedback(bool isLike) {
@@ -491,15 +533,6 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
   Color _getMovieColor(Movie movie) {
     if (movie.genre.isEmpty) return AppTheme.primaryOrange;
     return AppTheme.getGenreColor(movie.genre.first);
-  }
-
-  double _calculateMovieRating(Movie movie) {
-    double rating = 5.0;
-    if (movie.year > 2015) rating += 1.0;
-    if (movie.year > 2020) rating += 0.5;
-    rating += movie.genre.length * 0.2;
-    rating += movie.cast.length * 0.1;
-    return rating.clamp(1.0, 10.0);
   }
 
   void _showMovieComments() {
@@ -738,7 +771,10 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
               return Stack(
                 children: [
                   Padding(
-                    padding:  EdgeInsets.symmetric(horizontal:screenWidth *0.005 , vertical: screenHeight*0.01 ),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: screenWidth * 0.005,
+                      vertical: screenHeight * 0.01,
+                    ),
                     child: IconButton(
                       icon: const Icon(Icons.notifications),
                       onPressed: () {
@@ -1141,9 +1177,7 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
                                                               isTablet ? 6 : 4,
                                                         ),
                                                         Text(
-                                                          _calculateMovieRating(
-                                                            _currentMovie!,
-                                                          ).toStringAsFixed(1),
+                                                          '${_currentMovieRating['formattedRating']} (${_currentMovieRating['commentCount']})',
                                                           style: Theme.of(
                                                                 context,
                                                               )

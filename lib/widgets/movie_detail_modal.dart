@@ -38,6 +38,11 @@ class _MovieDetailModalState extends State<MovieDetailModal> {
   final CommentsService _commentsService = CommentsService();
   List<Map<String, dynamic>> _comments = [];
   bool _isLoadingComments = true;
+  Map<String, dynamic> _ratingInfo = {
+    'averageRating': 0.0,
+    'commentCount': 0,
+    'formattedRating': '0.0',
+  };
 
   @override
   void initState() {
@@ -53,8 +58,12 @@ class _MovieDetailModalState extends State<MovieDetailModal> {
   Future<void> _loadComments() async {
     setState(() => _isLoadingComments = true);
     final comments = await _commentsService.getComments(widget.movie.id);
+    final ratingInfo = await _commentsService.getMovieRatingInfo(
+      widget.movie.id,
+    );
     setState(() {
       _comments = comments;
+      _ratingInfo = ratingInfo;
       _isLoadingComments = false;
     });
   }
@@ -560,14 +569,34 @@ class _MovieDetailModalState extends State<MovieDetailModal> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              'Yorumlar (${_comments.length})',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.darkGrey,
-              ),
+            // Sol taraf: Puan ve yorum sayısı
+            Row(
+              children: [
+                // Yıldız ikonu
+                Icon(Icons.star, color: Colors.amber, size: 20),
+                const SizedBox(width: 4),
+                // Ortalama puan
+                Text(
+                  _ratingInfo['formattedRating'],
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.darkGrey,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // Yorumlar yazısı ve sayısı
+                Text(
+                  'Yorumlar (${_ratingInfo['commentCount']})',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.darkGrey,
+                  ),
+                ),
+              ],
             ),
+            // Sağ taraf: Tümünü gör butonu
             GestureDetector(
               onTap: () {
                 Navigator.pushNamed(
@@ -602,41 +631,28 @@ class _MovieDetailModalState extends State<MovieDetailModal> {
                   )
                   : _comments.isEmpty
                   ? Container(
-                    width: double.infinity,
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
                       color: AppTheme.lightGrey,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: AppTheme.secondaryGrey.withOpacity(0.3),
-                        width: 1,
-                      ),
                     ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.comment_outlined,
+                    child: Center(
+                      child: Text(
+                        'Henüz yorum yapılmamış.\nİlk yorumu sen yap!',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
                           color: AppTheme.secondaryGrey,
-                          size: 24,
+                          fontSize: 14,
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Henüz yorum yapılmamış\nİlk yorumu siz yapın!',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppTheme.secondaryGrey,
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                   )
                   : ListView.builder(
                     scrollDirection: Axis.horizontal,
                     itemCount: _comments.length,
-                    itemBuilder:
-                        (context, index) => _buildCommentCard(_comments[index]),
+                    itemBuilder: (context, index) {
+                      return _buildCommentCard(_comments[index]);
+                    },
                   ),
         ),
       ],

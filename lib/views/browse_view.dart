@@ -20,6 +20,7 @@ class BrowseView extends StatefulWidget {
 class _BrowseViewState extends State<BrowseView> with TickerProviderStateMixin {
   final BatchOptimizedMovieService _movieService = BatchOptimizedMovieService();
   final ProfileService _profileService = ProfileService();
+  final CommentsService _commentsService = CommentsService();
 
   List<Movie> _allMovies = [];
   Map<String, List<Movie>> _moviesByGenre = {};
@@ -425,6 +426,37 @@ class _BrowseViewState extends State<BrowseView> with TickerProviderStateMixin {
                       overflow: TextOverflow.ellipsis,
                     ),
                     SizedBox(height: isTablet ? 12 : 8),
+
+                    // Rating bilgisi ekle
+                    FutureBuilder<Map<String, dynamic>>(
+                      future: _commentsService.getMovieRatingInfo(movie.id),
+                      builder: (context, snapshot) {
+                        if (snapshot.hasData) {
+                          final ratingInfo = snapshot.data!;
+                          return Row(
+                            children: [
+                              Icon(
+                                Icons.star,
+                                color: Colors.amber,
+                                size: isTablet ? 18 : 16,
+                              ),
+                              SizedBox(width: 4),
+                              Text(
+                                '${ratingInfo['formattedRating']} (${ratingInfo['commentCount']})',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: genreFontSize,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          );
+                        }
+                        return SizedBox(height: isTablet ? 18 : 16);
+                      },
+                    ),
+
+                    SizedBox(height: isTablet ? 8 : 6),
                     Text(
                       movie.genre.take(2).join(' • '),
                       style: TextStyle(
@@ -591,6 +623,37 @@ class _BrowseViewState extends State<BrowseView> with TickerProviderStateMixin {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
+            SizedBox(height: spacingBetween / 4),
+
+            // Rating bilgisi ekle
+            FutureBuilder<Map<String, dynamic>>(
+              future: _commentsService.getMovieRatingInfo(movie.id),
+              builder: (context, snapshot) {
+                if (snapshot.hasData) {
+                  final ratingInfo = snapshot.data!;
+                  return Row(
+                    children: [
+                      Icon(
+                        Icons.star,
+                        color: Colors.amber,
+                        size: isTablet ? 12 : 10,
+                      ),
+                      SizedBox(width: 2),
+                      Text(
+                        '${ratingInfo['formattedRating']} (${ratingInfo['commentCount']})',
+                        style: TextStyle(
+                          fontSize: yearFontSize,
+                          color: AppTheme.secondaryGrey,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  );
+                }
+                return SizedBox(height: yearFontSize);
+              },
+            ),
+
             SizedBox(height: spacingBetween / 4),
             Text(
               movie.year.toString(),
