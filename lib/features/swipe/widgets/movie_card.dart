@@ -65,11 +65,7 @@ class _MovieCardState extends State<MovieCard> {
   }
 
   String _formatMovieInfo() {
-    return SwipeConstants.movieInfoSemanticFormat
-        .replaceFirst('%s', widget.movie.title)
-        .replaceFirst('%s', widget.movie.director)
-        .replaceFirst('%s', widget.movie.genre.join(', '))
-        .replaceFirst('%d', widget.movie.year.toString());
+    return 'Film: ${widget.movie.title}, Türler: ${widget.movie.genre.join(', ')}, Yıl: ${widget.movie.year}';
   }
 
   @override
@@ -212,23 +208,60 @@ class _MovieCardState extends State<MovieCard> {
                     ),
 
                     SizedBox(height: 4),
+
+                    // Language and TMDB Rating
                     Semantics(
-                      label: 'Yönetmen: ${widget.movie.director}',
-                      child: Text(
-                        'Yönetmen: ${widget.movie.director}',
-                        style: TextStyle(color: Colors.white70, fontSize: 14),
-                        overflow: TextOverflow.ellipsis,
+                      label:
+                          'Dil: ${widget.movie.originalLanguage.toUpperCase()}, TMDB Puanı: ${widget.movie.voteAverage.toStringAsFixed(1)}',
+                      child: Row(
+                        children: [
+                          // Language
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              widget.movie.originalLanguage.toUpperCase(),
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                          SizedBox(width: 12),
+                          // TMDB Rating
+                          Row(
+                            children: [
+                              Icon(Icons.star, color: Colors.amber, size: 16),
+                              SizedBox(width: 4),
+                              Text(
+                                widget.movie.voteAverage.toStringAsFixed(1),
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
 
-                    if (widget.movie.description.isNotEmpty) ...[
+                    if (widget.movie.overview.isNotEmpty) ...[
                       SizedBox(height: 12),
                       Expanded(
                         child: Semantics(
-                          label: 'Film açıklaması: ${widget.movie.description}',
+                          label: 'Film açıklaması: ${widget.movie.overview}',
                           child: SingleChildScrollView(
                             child: Text(
-                              widget.movie.description,
+                              widget.movie.overview,
                               style: TextStyle(
                                 color: Colors.white70,
                                 fontSize: 14,

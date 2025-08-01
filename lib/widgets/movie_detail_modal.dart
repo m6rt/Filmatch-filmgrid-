@@ -247,12 +247,15 @@ class _MovieDetailModalState extends State<MovieDetailModal> {
                               ),
 
                             // Movie Info
-                            _buildInfoRow('Yönetmen', widget.movie.director),
                             _buildInfoRow('Tür', widget.movie.genre.join(', ')),
                             _buildInfoRow('Yıl', widget.movie.year.toString()),
                             _buildInfoRow(
-                              'Oyuncular',
-                              widget.movie.cast.take(3).join(', '),
+                              'Dil',
+                              widget.movie.originalLanguage.toUpperCase(),
+                            ),
+                            _buildInfoRow(
+                              'TMDB Puanı',
+                              '${widget.movie.voteAverage.toStringAsFixed(1)} ⭐',
                             ),
 
                             const SizedBox(height: 12),
@@ -268,7 +271,7 @@ class _MovieDetailModalState extends State<MovieDetailModal> {
                             ),
                             const SizedBox(height: 6),
                             Text(
-                              widget.movie.description,
+                              widget.movie.overview,
                               style: TextStyle(
                                 fontSize: 14,
                                 color: AppTheme.darkGrey,
