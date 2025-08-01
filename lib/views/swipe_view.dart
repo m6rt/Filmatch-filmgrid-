@@ -1199,15 +1199,6 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
                                                 height: isTablet ? 12 : 10,
                                               ),
                                               _buildInfoRow(
-                                                Icons.person,
-                                                'Director',
-                                                _currentMovie!.director,
-                                                isTablet,
-                                              ),
-                                              SizedBox(
-                                                height: isTablet ? 6 : 4,
-                                              ),
-                                              _buildInfoRow(
                                                 Icons.category,
                                                 'Genre',
                                                 _currentMovie!.genre
@@ -1228,11 +1219,19 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
                                                 height: isTablet ? 6 : 4,
                                               ),
                                               _buildInfoRow(
-                                                Icons.group,
-                                                'Cast',
-                                                _currentMovie!.cast
-                                                    .take(2)
-                                                    .join(', '),
+                                                Icons.language,
+                                                'Language',
+                                                _currentMovie!.originalLanguage
+                                                    .toUpperCase(),
+                                                isTablet,
+                                              ),
+                                              SizedBox(
+                                                height: isTablet ? 6 : 4,
+                                              ),
+                                              _buildInfoRow(
+                                                Icons.star_rate,
+                                                'TMDB Rating',
+                                                '${_currentMovie!.voteAverage.toStringAsFixed(1)}/10',
                                                 isTablet,
                                               ),
                                               SizedBox(
@@ -1251,7 +1250,7 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
                                                     width: isTablet ? 10 : 8,
                                                   ),
                                                   Text(
-                                                    'Description: ',
+                                                    'Overview: ',
                                                     style: Theme.of(context)
                                                         .textTheme
                                                         .bodySmall
@@ -1270,7 +1269,7 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
                                                 height: isTablet ? 8 : 6,
                                               ),
                                               Text(
-                                                _currentMovie!.description,
+                                                _currentMovie!.overview,
                                                 style: Theme.of(
                                                   context,
                                                 ).textTheme.bodySmall?.copyWith(

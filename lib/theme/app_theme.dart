@@ -27,35 +27,45 @@ class AppTheme {
   static Color getGenreColor(String genre) {
     switch (genre.toLowerCase()) {
       case 'action':
-        return primaryRed;
+        return const Color(0xFFE74C3C); // Kırmızı
       case 'adventure':
-        return primaryOrange;
+        return const Color(0xFF3498DB); // Mavi
+      case 'animation':
+        return const Color(0xFF9B59B6); // Mor
       case 'comedy':
-        return Color(0xFFFFB347); // Light Orange
-      case 'drama':
-        return Color(0xFFFF8A80); // Light Red
-      case 'fantasy':
-        return Color(0xFFFFAB91); // Peach
-      case 'horror':
-        return Color(0xFFFF5722); // Deep Orange
-      case 'mystery':
-        return Color(0xFFFF7043); // Medium Orange
-      case 'romance':
-        return primaryRed;
-      case 'science fiction':
-        return Color(0xFFFF6F00); // Orange
-      case 'thriller':
-        return Color(0xFFE64A19); // Dark Orange
+        return const Color(0xFFF39C12); // Turuncu
       case 'crime':
-        return Color(0xFFFF5722); // Deep Orange
+        return const Color(0xFF34495E); // Koyu gri
       case 'documentary':
-        return Color(0xFFFFB74D); // Light Orange
+        return const Color(0xFF16A085); // Teal
+      case 'drama':
+        return const Color(0xFF8E44AD); // Koyu mor
       case 'family':
-        return Color(0xFFFFCC80); // Very Light Orange
+        return const Color(0xFF2ECC71); // Yeşil
+      case 'fantasy':
+        return const Color(0xFFE67E22); // Portakal
       case 'history':
-        return Color(0xFFFF8A65); // Coral
+        return const Color(0xFF95A5A6); // Açık gri
+      case 'horror':
+        return const Color(0xFF000000); // Siyah
+      case 'music':
+        return const Color(0xFFF1C40F); // Sarı
+      case 'mystery':
+        return const Color(0xFF7F8C8D); // Gri
+      case 'romance':
+        return const Color(0xFFE91E63); // Pembe
+      case 'science fiction':
+        return const Color(0xFF1ABC9C); // Cyan
+      case 'tv movie':
+        return const Color(0xFF3F51B5); // Indigo
+      case 'thriller':
+        return const Color(0xFF607D8B); // Blue Grey
+      case 'war':
+        return const Color(0xFF795548); // Kahverengi
+      case 'western':
+        return const Color(0xFFFF5722); // Deep Orange
       default:
-        return primaryOrange;
+        return primaryRed;
     }
   }
 

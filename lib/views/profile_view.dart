@@ -434,12 +434,17 @@ class _ProfileViewState extends State<ProfileView>
             movie ??= Movie(
               id: movieId,
               title: 'Bilinmeyen Film',
-              posterUrl: '',
-              year: 0,
+              adult: false,
               genre: [],
-              director: '',
-              cast: [],
-              description: '',
+              genreIds: [],
+              originalLanguage: 'tr',
+              originalTitle: 'Bilinmeyen Film',
+              overview: 'Film bilgisi bulunamadı',
+              popularity: 0.0,
+              posterPath: '',
+              releaseDate: '2024-01-01',
+              voteAverage: 0.0,
+              voteCount: 0,
             );
 
             comment['movie'] = movie;
@@ -450,12 +455,17 @@ class _ProfileViewState extends State<ProfileView>
             comment['movie'] = Movie(
               id: comment['movieId'] ?? 0,
               title: 'Film Bulunamadı',
-              posterUrl: '',
-              year: 0,
+              adult: false,
               genre: [],
-              director: '',
-              cast: [],
-              description: '',
+              genreIds: [],
+              originalLanguage: 'tr',
+              originalTitle: 'Film Bulunamadı',
+              overview: 'Film bilgisi bulunamadı',
+              popularity: 0.0,
+              posterPath: '',
+              releaseDate: '2024-01-01',
+              voteAverage: 0.0,
+              voteCount: 0,
             );
             return comment;
           }
