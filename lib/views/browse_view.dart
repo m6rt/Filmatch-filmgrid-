@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'dart:math';
 import '../models/movie.dart';
 import '../services/batch_optimized_movie_service.dart';
 import '../services/profile_service.dart';
 import '../services/comments_service.dart'; // Bu import'u ekleyin
 import '../theme/app_theme.dart';
-import '../widgets/optimized_video_player.dart';
 import 'package:flutter/services.dart';
 import '../widgets/movie_detail_modal.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'search_view.dart';
 
 class BrowseView extends StatefulWidget {
@@ -27,6 +28,14 @@ class _BrowseViewState extends State<BrowseView> with TickerProviderStateMixin {
   List<Movie> _trendingMovies = [];
   bool _isLoading = true;
   String? _error;
+
+  // Film karşılaştırma için
+  Movie? _comparisonMovie1;
+  Movie? _comparisonMovie2;
+  Movie? _userChoice;
+  Map<String, int> _votingResults = {'movie1': 0, 'movie2': 0};
+  bool _hasVoted = false;
+  bool _showResults = false;
 
   // Trending carousel için
   late PageController _trendingController;
@@ -122,6 +131,168 @@ class _BrowseViewState extends State<BrowseView> with TickerProviderStateMixin {
 
     recentMovies.shuffle();
     _trendingMovies = recentMovies.take(10).toList();
+    _selectDailyComparisonMovies();
+  }
+
+  Future<void> _selectDailyComparisonMovies() async {
+    final today =
+        DateTime.now().toIso8601String().split('T')[0]; // YYYY-MM-DD format
+    final prefs = await SharedPreferences.getInstance();
+
+    print('🗓️ Bugünün tarihi: $today');
+
+    // Bugünkü filmler zaten seçilmiş mi kontrol et
+    final savedDate = prefs.getString('daily_comparison_date');
+    final savedMovie1Id = prefs.getInt('daily_movie1_id');
+    final savedMovie2Id = prefs.getInt('daily_movie2_id');
+
+    print('💾 SharedPreferences\'den okunan:');
+    print('   - Kayıtlı tarih: $savedDate');
+    print('   - Film 1 ID: $savedMovie1Id');
+    print('   - Film 2 ID: $savedMovie2Id');
+
+    if (savedDate == today && savedMovie1Id != null && savedMovie2Id != null) {
+      // Bugün için zaten filmler seçilmiş, onları kullan
+      print('🔄 Bugün için kaydedilmiş filmler bulundu, kullanılıyor...');
+      _comparisonMovie1 = _allMovies.firstWhere(
+        (movie) => movie.id == savedMovie1Id,
+        orElse: () => _selectRandomMovies().first,
+      );
+      _comparisonMovie2 = _allMovies.firstWhere(
+        (movie) => movie.id == savedMovie2Id,
+        orElse: () => _selectRandomMovies().last,
+      );
+      print(
+        '🎬 Yüklenen filmler: ${_comparisonMovie1!.title} vs ${_comparisonMovie2!.title}',
+      );
+    } else {
+      // Yeni gün, yeni filmler seç
+      print('🆕 Yeni gün, yeni filmler seçiliyor...');
+      final selectedMovies = _selectMoviesForDate(today);
+      _comparisonMovie1 = selectedMovies[0];
+      _comparisonMovie2 = selectedMovies[1];
+
+      print(
+        '🎬 Seçilen filmler: ${_comparisonMovie1!.title} vs ${_comparisonMovie2!.title}',
+      );
+
+      // SharedPreferences'a kaydet
+      await prefs.setString('daily_comparison_date', today);
+      await prefs.setInt('daily_movie1_id', _comparisonMovie1!.id);
+      await prefs.setInt('daily_movie2_id', _comparisonMovie2!.id);
+
+      print('💾 SharedPreferences\'e kaydedildi');
+    }
+
+    // Günlük oylama durumunu kontrol et
+    await _checkDailyVotingStatus();
+  }
+
+  List<Movie> _selectMoviesForDate(String date) {
+    // Tarihi seed olarak kullanarak deterministik film seçimi
+    final highRatedMovies =
+        _allMovies.where((movie) => movie.voteAverage >= 7.0).toList();
+
+    if (highRatedMovies.length < 2) {
+      return _selectRandomMovies();
+    }
+
+    // Tarihi sayıya çevir (seed olarak kullan)
+    final dateSeed = date.replaceAll('-', '').hashCode;
+    final random = Random(dateSeed);
+
+    // Aynı filmleri seçmemek için
+    final shuffledMovies = List<Movie>.from(highRatedMovies);
+    shuffledMovies.shuffle(random);
+
+    return [shuffledMovies[0], shuffledMovies[1]];
+  }
+
+  List<Movie> _selectRandomMovies() {
+    final movies =
+        _allMovies.where((movie) => movie.voteAverage >= 6.0).toList();
+    if (movies.length < 2) return _allMovies.take(2).toList();
+    movies.shuffle();
+    return movies.take(2).toList();
+  }
+
+  Future<void> _checkDailyVotingStatus() async {
+    final today = DateTime.now().toIso8601String().split('T')[0];
+    final prefs = await SharedPreferences.getInstance();
+
+    // Bugünkü oylama durumunu kontrol et
+    final savedVotingDate = prefs.getString('daily_voting_date');
+    final hasUserVoted = prefs.getBool('has_voted_today') ?? false;
+    final userChoiceId = prefs.getInt('daily_user_choice_id');
+    final movie1Votes = prefs.getInt('daily_movie1_votes') ?? 0;
+    final movie2Votes = prefs.getInt('daily_movie2_votes') ?? 0;
+
+    print('📊 Günlük oylama durumu:');
+    print('   - Oylama tarihi: $savedVotingDate');
+    print('   - Kullanıcı oy verdi mi: $hasUserVoted');
+    print('   - Seçilen film ID: $userChoiceId');
+    print('   - Film 1 oyları: $movie1Votes');
+    print('   - Film 2 oyları: $movie2Votes');
+
+    if (savedVotingDate == today) {
+      // Bugün için oylama durumunu geri yükle
+      _hasVoted = hasUserVoted;
+      _showResults = hasUserVoted;
+      _votingResults = {'movie1': movie1Votes, 'movie2': movie2Votes};
+
+      if (userChoiceId != null) {
+        _userChoice = _allMovies.firstWhere(
+          (movie) => movie.id == userChoiceId,
+          orElse: () => _comparisonMovie1!,
+        );
+      }
+
+      print('🔄 Bugünkü oylama durumu geri yüklendi');
+    } else {
+      // Yeni gün, oylama durumunu sıfırla
+      _hasVoted = false;
+      _showResults = false;
+      _votingResults = {'movie1': 0, 'movie2': 0};
+      _userChoice = null;
+
+      print('🆕 Yeni gün, oylama durumu sıfırlandı');
+    }
+  }
+
+  Future<void> _voteForMovie(Movie selectedMovie) async {
+    if (_hasVoted) return;
+
+    setState(() {
+      _userChoice = selectedMovie;
+      _hasVoted = true;
+
+      // Gerçek zamanlı oy sayısını artır
+      if (selectedMovie == _comparisonMovie1) {
+        _votingResults['movie1'] = _votingResults['movie1']! + 1;
+      } else {
+        _votingResults['movie2'] = _votingResults['movie2']! + 1;
+      }
+
+      _showResults = true;
+    });
+
+    // Oylama durumunu SharedPreferences'e kaydet
+    await _saveDailyVotingStatus(selectedMovie);
+
+    print('✅ Oy kaydedildi: ${selectedMovie.title}');
+  }
+
+  Future<void> _saveDailyVotingStatus(Movie selectedMovie) async {
+    final today = DateTime.now().toIso8601String().split('T')[0];
+    final prefs = await SharedPreferences.getInstance();
+
+    await prefs.setString('daily_voting_date', today);
+    await prefs.setBool('has_voted_today', true);
+    await prefs.setInt('daily_user_choice_id', selectedMovie.id);
+    await prefs.setInt('daily_movie1_votes', _votingResults['movie1']!);
+    await prefs.setInt('daily_movie2_votes', _votingResults['movie2']!);
+
+    print('💾 Oylama durumu SharedPreferences\'e kaydedildi');
   }
 
   void _startAutoScroll() {
@@ -262,6 +433,11 @@ class _BrowseViewState extends State<BrowseView> with TickerProviderStateMixin {
 
             const SizedBox(height: 20),
 
+            // Günlük Film Karşılaştırması
+            _buildDailyComparisonSection(),
+
+            const SizedBox(height: 20),
+
             // Türlere Göre Filmler
             ..._buildGenreSections(),
 
@@ -391,7 +567,62 @@ class _BrowseViewState extends State<BrowseView> with TickerProviderStateMixin {
           ),
           child: Stack(
             children: [
-              // Arkaplan gradient
+              // Poster Background
+              Positioned.fill(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(borderRadius),
+                  child:
+                      movie.posterUrl.isNotEmpty
+                          ? Image.network(
+                            movie.posterUrl,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: [
+                                      AppTheme.getGenreColor(
+                                        movie.genre.isNotEmpty
+                                            ? movie.genre.first
+                                            : 'Unknown',
+                                      ),
+                                      AppTheme.getGenreColor(
+                                        movie.genre.isNotEmpty
+                                            ? movie.genre.first
+                                            : 'Unknown',
+                                      ).withOpacity(0.7),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          )
+                          : Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  AppTheme.getGenreColor(
+                                    movie.genre.isNotEmpty
+                                        ? movie.genre.first
+                                        : 'Unknown',
+                                  ),
+                                  AppTheme.getGenreColor(
+                                    movie.genre.isNotEmpty
+                                        ? movie.genre.first
+                                        : 'Unknown',
+                                  ).withOpacity(0.7),
+                                ],
+                              ),
+                            ),
+                          ),
+                ),
+              ),
+
+              // Arkaplan gradient overlay
               Positioned.fill(
                 child: Container(
                   decoration: BoxDecoration(
@@ -401,7 +632,7 @@ class _BrowseViewState extends State<BrowseView> with TickerProviderStateMixin {
                       end: Alignment.bottomCenter,
                       colors: [
                         Colors.transparent,
-                        Colors.black.withOpacity(0.7),
+                        Colors.black.withOpacity(0.8),
                       ],
                     ),
                   ),
@@ -686,6 +917,374 @@ class _BrowseViewState extends State<BrowseView> with TickerProviderStateMixin {
       ),
       child: Center(
         child: Icon(Icons.movie, color: Colors.white, size: iconSize),
+      ),
+    );
+  }
+
+  Widget _buildDailyComparisonSection() {
+    if (_comparisonMovie1 == null || _comparisonMovie2 == null) {
+      return Container();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Başlık
+          Row(
+            children: [
+              Icon(Icons.compare, color: AppTheme.primaryRed, size: 24),
+              SizedBox(width: 8),
+              Text(
+                'Günlük Karşılaştırma',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.darkGrey,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 8),
+          Text(
+            'Hangi filmi daha çok seviyorsun? Seçimini yap ve diğer kullanıcıların tercihlerini gör!',
+            style: TextStyle(
+              fontSize: 14,
+              color: AppTheme.darkGrey.withOpacity(0.7),
+            ),
+          ),
+          SizedBox(height: 16),
+
+          // Karşılaştırma Kartları
+          if (!_showResults) ...[
+            _buildComparisonCards(),
+          ] else ...[
+            _buildResultsCards(),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildComparisonCards() {
+    return Row(
+      children: [
+        // Film 1
+        Expanded(
+          child: GestureDetector(
+            onTap: () => _voteForMovie(_comparisonMovie1!),
+            child: _buildComparisonCard(_comparisonMovie1!, false),
+          ),
+        ),
+
+        SizedBox(width: 16),
+
+        // VS Text
+        Column(
+          children: [
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryRed,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                'VS',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+          ],
+        ),
+
+        SizedBox(width: 16),
+
+        // Film 2
+        Expanded(
+          child: GestureDetector(
+            onTap: () => _voteForMovie(_comparisonMovie2!),
+            child: _buildComparisonCard(_comparisonMovie2!, false),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildResultsCards() {
+    final totalVotes = _votingResults['movie1']! + _votingResults['movie2']!;
+    final movie1Percentage =
+        totalVotes > 0 ? (_votingResults['movie1']! / totalVotes) * 100 : 0;
+    final movie2Percentage =
+        totalVotes > 0 ? (_votingResults['movie2']! / totalVotes) * 100 : 0;
+
+    return Column(
+      children: [
+        Row(
+          children: [
+            // Film 1 Results
+            Expanded(
+              child: _buildComparisonCard(
+                _comparisonMovie1!,
+                true,
+                percentage: movie1Percentage.round(),
+                isWinner: false, // Kazanan gösterme
+                isUserChoice: _userChoice == _comparisonMovie1,
+              ),
+            ),
+
+            SizedBox(width: 16),
+
+            // VS Text with total votes
+            Column(
+              children: [
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryRed,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    'VS',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  '$totalVotes oy',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppTheme.darkGrey.withOpacity(0.6),
+                  ),
+                ),
+              ],
+            ),
+
+            SizedBox(width: 16),
+
+            // Film 2 Results
+            Expanded(
+              child: _buildComparisonCard(
+                _comparisonMovie2!,
+                true,
+                percentage: movie2Percentage.round(),
+                isWinner: false, // Kazanan gösterme
+                isUserChoice: _userChoice == _comparisonMovie2,
+              ),
+            ),
+          ],
+        ),
+
+        SizedBox(height: 12),
+
+        Text(
+          'Oyunuz kaydedildi! Diğer kullanıcıların seçimlerini görüyorsunuz.',
+          style: TextStyle(
+            fontSize: 12,
+            color: AppTheme.primaryRed,
+            fontStyle: FontStyle.italic,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildComparisonCard(
+    Movie movie,
+    bool showResults, {
+    int percentage = 0,
+    bool isWinner = false,
+    bool isUserChoice = false,
+  }) {
+    return Container(
+      height: 200,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          // Film Poster/Background
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child:
+                movie.posterUrl.isNotEmpty
+                    ? Image.network(
+                      movie.posterUrl,
+                      width: double.infinity,
+                      height: double.infinity,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          width: double.infinity,
+                          height: double.infinity,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                AppTheme.getGenreColor(
+                                  movie.genre.isNotEmpty
+                                      ? movie.genre.first
+                                      : 'Unknown',
+                                ),
+                                AppTheme.getGenreColor(
+                                  movie.genre.isNotEmpty
+                                      ? movie.genre.first
+                                      : 'Unknown',
+                                ).withOpacity(0.8),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    )
+                    : Container(
+                      width: double.infinity,
+                      height: double.infinity,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            AppTheme.getGenreColor(
+                              movie.genre.isNotEmpty
+                                  ? movie.genre.first
+                                  : 'Unknown',
+                            ),
+                            AppTheme.getGenreColor(
+                              movie.genre.isNotEmpty
+                                  ? movie.genre.first
+                                  : 'Unknown',
+                            ).withOpacity(0.8),
+                          ],
+                        ),
+                      ),
+                    ),
+          ),
+
+          // Film Bilgileri
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              padding: EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.only(
+                  bottomLeft: Radius.circular(12),
+                  bottomRight: Radius.circular(12),
+                ),
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Colors.transparent, Colors.black.withOpacity(0.8)],
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    movie.title,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(Icons.star, color: Colors.amber, size: 16),
+                      SizedBox(width: 4),
+                      Text(
+                        movie.voteAverage.toStringAsFixed(1),
+                        style: TextStyle(color: Colors.white70, fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Results Overlay
+          if (showResults) ...[
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                color: Colors.black.withOpacity(0.3),
+              ),
+            ),
+
+            Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '$percentage%',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  if (isWinner) ...[
+                    SizedBox(height: 4),
+                    Container(
+                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryRed,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        'KAZANAN',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+
+          // User Choice Indicator
+          if (isUserChoice && showResults) ...[
+            Positioned(
+              top: 8,
+              right: 8,
+              child: Container(
+                padding: EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryRed,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.check, color: Colors.white, size: 16),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
