@@ -44,6 +44,9 @@ class _MovieDetailModalState extends State<MovieDetailModal> {
     'formattedRating': '0.0',
   };
 
+  // Film istatistikleri için
+  Map<String, int> _movieStats = {'favoriteCount': 0, 'watchlistCount': 0};
+
   @override
   void initState() {
     super.initState();
@@ -61,11 +64,31 @@ class _MovieDetailModalState extends State<MovieDetailModal> {
     final ratingInfo = await _commentsService.getMovieRatingInfo(
       widget.movie.id,
     );
+    final movieStats = await widget.profileService.getMovieStats(
+      widget.movie.id.toString(),
+    );
     setState(() {
       _comments = comments;
       _ratingInfo = ratingInfo;
+      _movieStats = movieStats;
       _isLoadingComments = false;
     });
+  }
+
+  // Film istatistiklerini yeniden yükle
+  Future<void> _reloadMovieStats() async {
+    try {
+      final movieStats = await widget.profileService.getMovieStats(
+        widget.movie.id.toString(),
+      );
+      if (mounted) {
+        setState(() {
+          _movieStats = movieStats;
+        });
+      }
+    } catch (e) {
+      print('Error reloading movie stats: $e');
+    }
   }
 
   Future<void> _checkMovieStatus() async {
@@ -255,7 +278,15 @@ class _MovieDetailModalState extends State<MovieDetailModal> {
                             ),
                             _buildInfoRow(
                               'TMDB Puanı',
-                              '${widget.movie.voteAverage.toStringAsFixed(1)} ⭐',
+                              '${widget.movie.voteAverage.toStringAsFixed(1)} ⭐ (${widget.movie.voteCount})',
+                            ),
+                            _buildInfoRow(
+                              'Favorilerde',
+                              '${_movieStats['favoriteCount']} kullanıcı',
+                            ),
+                            _buildInfoRow(
+                              'İzleme Listesinde',
+                              '${_movieStats['watchlistCount']} kullanıcı',
                             ),
 
                             const SizedBox(height: 12),
@@ -342,6 +373,8 @@ class _MovieDetailModalState extends State<MovieDetailModal> {
                                                             _isInFavorites =
                                                                 false,
                                                       );
+                                                      // İstatistikleri yenile
+                                                      await _reloadMovieStats();
                                                       ScaffoldMessenger.of(
                                                         context,
                                                       ).showSnackBar(
@@ -368,6 +401,8 @@ class _MovieDetailModalState extends State<MovieDetailModal> {
                                                               _isInFavorites =
                                                                   true,
                                                         );
+                                                        // İstatistikleri yenile
+                                                        await _reloadMovieStats();
                                                       }
                                                     }
                                                   }
@@ -447,6 +482,8 @@ class _MovieDetailModalState extends State<MovieDetailModal> {
                                                             _isInWatchlist =
                                                                 false,
                                                       );
+                                                      // İstatistikleri yenile
+                                                      await _reloadMovieStats();
                                                       ScaffoldMessenger.of(
                                                         context,
                                                       ).showSnackBar(
@@ -473,6 +510,8 @@ class _MovieDetailModalState extends State<MovieDetailModal> {
                                                               _isInWatchlist =
                                                                   true,
                                                         );
+                                                        // İstatistikleri yenile
+                                                        await _reloadMovieStats();
                                                       }
                                                     }
                                                   }

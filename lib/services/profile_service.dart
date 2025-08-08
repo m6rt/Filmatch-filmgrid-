@@ -824,4 +824,31 @@ class ProfileService {
       print('Error sending comment notifications to followers: $e');
     }
   }
+
+  // Film istatistiklerini getir (kaç kişi favoriye/watchliste ekledi)
+  Future<Map<String, int>> getMovieStats(String movieId) async {
+    try {
+      // Favorilerde kaç kez geçiyor
+      final favoritesQuery =
+          await _firestore
+              .collection('users')
+              .where('favoriteMovieIds', arrayContains: movieId)
+              .get();
+
+      // Watchlist'te kaç kez geçiyor
+      final watchlistQuery =
+          await _firestore
+              .collection('users')
+              .where('watchlistMovieIds', arrayContains: movieId)
+              .get();
+
+      return {
+        'favoriteCount': favoritesQuery.docs.length,
+        'watchlistCount': watchlistQuery.docs.length,
+      };
+    } catch (e) {
+      print('Error getting movie stats: $e');
+      return {'favoriteCount': 0, 'watchlistCount': 0};
+    }
+  }
 }

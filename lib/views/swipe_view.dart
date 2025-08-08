@@ -36,6 +36,12 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
     'formattedRating': '0.0',
   };
 
+  // Film istatistikleri için
+  Map<String, int> _currentMovieStats = {
+    'favoriteCount': 0,
+    'watchlistCount': 0,
+  };
+
   // Video pozisyonunu saklamak için
   Duration? _currentVideoPosition;
   GlobalKey<OptimizedVideoPlayerState>? _videoPlayerKey;
@@ -88,6 +94,7 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
       // İlk filmin rating bilgisini yükle
       if (_currentMovie != null) {
         await _loadMovieRating();
+        await _loadMovieStats();
       }
 
       setState(() {
@@ -288,6 +295,7 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
     // Yeni filmin rating bilgisini yükle
     if (_currentMovie != null) {
       _loadMovieRating();
+      _loadMovieStats();
     }
 
     _swipeAnimationController.reset();
@@ -313,6 +321,25 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
           'commentCount': 0,
           'formattedRating': '0.0',
         };
+      });
+    }
+  }
+
+  // Film istatistiklerini yükle
+  Future<void> _loadMovieStats() async {
+    if (_currentMovie == null) return;
+
+    try {
+      final stats = await _profileService.getMovieStats(
+        _currentMovie!.id.toString(),
+      );
+      setState(() {
+        _currentMovieStats = stats;
+      });
+    } catch (e) {
+      print('Error loading movie stats: $e');
+      setState(() {
+        _currentMovieStats = {'favoriteCount': 0, 'watchlistCount': 0};
       });
     }
   }
@@ -550,6 +577,8 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
       final success = await _profileService.addToWatchlist(movie.id.toString());
       if (success) {
         print('Film izleme listesine eklendi: ${movie.title}');
+        // İstatistikleri yenile
+        await _loadMovieStats();
       } else {
         print(
           'Film zaten izleme listesinde veya ekleme başarısız: ${movie.title}',
@@ -1232,6 +1261,24 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
                                                 Icons.star_rate,
                                                 'TMDB Rating',
                                                 '${_currentMovie!.voteAverage.toStringAsFixed(1)}/10 (${_currentMovie!.voteCount})',
+                                                isTablet,
+                                              ),
+                                              SizedBox(
+                                                height: isTablet ? 6 : 4,
+                                              ),
+                                              _buildInfoRow(
+                                                Icons.favorite,
+                                                'Favorites',
+                                                '${_currentMovieStats['favoriteCount']} users',
+                                                isTablet,
+                                              ),
+                                              SizedBox(
+                                                height: isTablet ? 6 : 4,
+                                              ),
+                                              _buildInfoRow(
+                                                Icons.watch_later,
+                                                'Watchlist',
+                                                '${_currentMovieStats['watchlistCount']} users',
                                                 isTablet,
                                               ),
                                               SizedBox(
