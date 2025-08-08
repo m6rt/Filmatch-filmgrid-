@@ -123,8 +123,7 @@ class AppTheme {
         behavior: SnackBarBehavior.floating,
       ),
 
-      // Card Theme
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: white,
         elevation: 8,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),

@@ -998,7 +998,7 @@ class _ProfileViewState extends State<ProfileView>
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       color: AppTheme.primaryRed.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(40),
                     ),
                     child: Icon(
                       Icons.edit_note,

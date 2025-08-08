@@ -515,7 +515,7 @@ class _PublicProfileViewState extends State<PublicProfileView> {
                                 padding: const EdgeInsets.all(8),
                                 decoration: BoxDecoration(
                                   color: Colors.white.withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(8),
+                                  borderRadius: BorderRadius.circular(40),
                                 ),
                                 child: Icon(
                                   Icons.person_outline,
