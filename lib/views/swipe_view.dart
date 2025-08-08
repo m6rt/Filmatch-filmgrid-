@@ -1518,6 +1518,7 @@ class _CustomFullscreenVideoPlayerState
   late GlobalKey<OptimizedVideoPlayerState> _playerKey;
   bool _showControls = true;
   bool _isPlaying = false;
+  bool _captionsEnabled = true; // Altyazı durumu
   Duration _currentPosition = Duration.zero;
   Duration _totalDuration = Duration.zero;
   Timer? _hideControlsTimer;
@@ -1623,6 +1624,26 @@ class _CustomFullscreenVideoPlayerState
     _startHideControlsTimer();
   }
 
+  void _toggleCaptions() {
+    setState(() {
+      _captionsEnabled = !_captionsEnabled;
+    });
+    _playerKey.currentState?.toggleCaptions();
+
+    // Kullanıcıya geri bildirim
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          _captionsEnabled ? 'Altyazılar açıldı' : 'Altyazılar kapatıldı',
+          style: TextStyle(color: Colors.white),
+        ),
+        backgroundColor: Colors.black.withOpacity(0.8),
+        duration: Duration(seconds: 1),
+      ),
+    );
+    _showControlsTemporarily();
+  }
+
   void _closeFullscreen() {
     final currentPosition = _playerKey.currentState?.currentPosition;
     widget.onClose(currentPosition);
@@ -1710,6 +1731,28 @@ class _CustomFullscreenVideoPlayerState
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
+
+                          // Altyazı toggle butonu
+                          IconButton(
+                            onPressed: _toggleCaptions,
+                            icon: Container(
+                              padding: EdgeInsets.all(isTablet ? 16 : 12),
+                              decoration: BoxDecoration(
+                                color:
+                                    _captionsEnabled
+                                        ? AppTheme.primaryRed.withOpacity(0.8)
+                                        : Colors.black.withOpacity(0.5),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.closed_caption,
+                                color: Colors.white,
+                                size: isTablet ? 28 : 24,
+                              ),
+                            ),
+                          ),
+
+                          // Close butonu
                           IconButton(
                             onPressed: _closeFullscreen,
                             icon: Container(

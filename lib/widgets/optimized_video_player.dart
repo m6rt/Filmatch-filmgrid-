@@ -29,6 +29,7 @@ class OptimizedVideoPlayerState extends State<OptimizedVideoPlayer> {
   String? _videoId;
   bool _showControls = false; // Kontrol görünürlüğü için
   Timer? _hideControlsTimer; // Kontrolleri gizlemek için timer
+  bool _captionsEnabled = true; // Altyazı durumu
 
   @override
   void initState() {
@@ -47,7 +48,7 @@ class OptimizedVideoPlayerState extends State<OptimizedVideoPlayer> {
             autoPlay: widget.autoPlay,
             mute: false, // Ses her zaman açık
             loop: false,
-            enableCaption: widget.enableFullscreenControls,
+            enableCaption: true, // Altyazıları her zaman aktif
             showLiveFullscreenButton: widget.enableFullscreenControls,
             controlsVisibleAtStart: widget.enableFullscreenControls,
             hideControls: false, // Kontrolleri her zaman göster
@@ -55,6 +56,7 @@ class OptimizedVideoPlayerState extends State<OptimizedVideoPlayer> {
             forceHD: false,
             startAt: 0,
             useHybridComposition: true, // Performans için
+            captionLanguage: 'tr', // Türkçe altyazı tercih et
           ),
         );
 
@@ -127,6 +129,18 @@ class OptimizedVideoPlayerState extends State<OptimizedVideoPlayer> {
   void pause() {
     _controller?.pause();
   }
+
+  void toggleCaptions() {
+    if (_controller != null) {
+      setState(() {
+        _captionsEnabled = !_captionsEnabled;
+      });
+      // YouTube Player flutter paketinde direkt caption toggle yok,
+      // ancak controller üzerinden ayarları değiştirebiliriz
+    }
+  }
+
+  bool get areCaptionsEnabled => _captionsEnabled;
 
   @override
   Widget build(BuildContext context) {

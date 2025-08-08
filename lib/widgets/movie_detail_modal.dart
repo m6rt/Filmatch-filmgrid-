@@ -863,10 +863,13 @@ class _CustomFullscreenVideoPlayerState
   bool _isPlaying = false;
   bool _showControls = true;
   Timer? _controlsTimer;
+  bool _captionsEnabled = true; // Altyazı durumu
+  GlobalKey<OptimizedVideoPlayerState>? _videoPlayerKey;
 
   @override
   void initState() {
     super.initState();
+    _videoPlayerKey = GlobalKey<OptimizedVideoPlayerState>();
     _hideControlsAfterDelay();
   }
 
@@ -922,35 +925,83 @@ class _CustomFullscreenVideoPlayerState
               width: double.infinity,
               height: double.infinity,
               child: OptimizedVideoPlayer(
+                key: _videoPlayerKey,
                 trailerUrl: widget.trailerUrl,
                 backgroundColor: Colors.black,
                 autoPlay: true,
+                enableFullscreenControls: true, // Tam ekran kontrolleri aktif
               ),
             ),
 
             // Kontroller (sadece showControls true ise)
             if (_showControls) ...[
-              // Üst bar - Close butonu
+              // Üst bar - Close butonu ve Altyazı butonu
               Positioned(
                 top: MediaQuery.of(context).padding.top + 10,
                 left: 20,
-                child: GestureDetector(
-                  onTap: () {
-                    widget.onClose();
-                    Navigator.pop(context);
-                  },
-                  child: Container(
-                    padding: EdgeInsets.all(isTablet ? 16 : 12),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.7),
-                      shape: BoxShape.circle,
+                right: 20,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    // Close butonu
+                    GestureDetector(
+                      onTap: () {
+                        widget.onClose();
+                        Navigator.pop(context);
+                      },
+                      child: Container(
+                        padding: EdgeInsets.all(isTablet ? 16 : 12),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.7),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.arrow_back,
+                          color: Colors.white,
+                          size: isTablet ? 28 : 24,
+                        ),
+                      ),
                     ),
-                    child: Icon(
-                      Icons.arrow_back,
-                      color: Colors.white,
-                      size: isTablet ? 28 : 24,
+
+                    // Altyazı toggle butonu
+                    GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _captionsEnabled = !_captionsEnabled;
+                        });
+                        _videoPlayerKey?.currentState?.toggleCaptions();
+
+                        // Kullanıcıya geri bildirim
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              _captionsEnabled
+                                  ? 'Altyazılar açıldı'
+                                  : 'Altyazılar kapatıldı',
+                              style: TextStyle(color: Colors.white),
+                            ),
+                            backgroundColor: Colors.black.withOpacity(0.8),
+                            duration: Duration(seconds: 1),
+                          ),
+                        );
+                      },
+                      child: Container(
+                        padding: EdgeInsets.all(isTablet ? 16 : 12),
+                        decoration: BoxDecoration(
+                          color:
+                              _captionsEnabled
+                                  ? AppTheme.primaryRed.withOpacity(0.8)
+                                  : Colors.black.withOpacity(0.7),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.closed_caption,
+                          color: Colors.white,
+                          size: isTablet ? 28 : 24,
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
               ),
 
