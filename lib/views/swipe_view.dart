@@ -1231,7 +1231,7 @@ class _SwipeViewState extends State<SwipeView> with TickerProviderStateMixin {
                                               _buildInfoRow(
                                                 Icons.star_rate,
                                                 'TMDB Rating',
-                                                '${_currentMovie!.voteAverage.toStringAsFixed(1)}/10',
+                                                '${_currentMovie!.voteAverage.toStringAsFixed(1)}/10 (${_currentMovie!.voteCount})',
                                                 isTablet,
                                               ),
                                               SizedBox(
